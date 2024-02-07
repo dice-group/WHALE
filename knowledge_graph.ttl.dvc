@@ -1,0 +1,5 @@
+outs:
+- md5: 0fee41757249d35d0d8a0e5ea5d83d2a
+  size: 1062041102
+  hash: md5
+  path: knowledge_graph.ttl

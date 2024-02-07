@@ -1,0 +1,5 @@
+outs:
+- md5: 9c0a680fa1906078bb9675f3d2cffd9c
+  size: 2455402423
+  hash: md5
+  path: knowledge_ontology.owl
