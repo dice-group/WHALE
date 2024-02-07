@@ -42,7 +42,10 @@ g.add((wo.DiscountPrice, RDFS.subClassOf, wo.Price))
 # Function to add triple if value is not NaN
 def add_triple_if_not_nan(subject, predicate, value, datatype):
     if pd.notna(value) and value is not None:
-        g.add((subject, predicate, Literal(value, datatype=datatype)))
+        if datatype is XSD.int:
+            g.add((subject, predicate, Literal(int(value), datatype=datatype)))
+        else:
+            g.add((subject, predicate, Literal(value, datatype=datatype)))
 
 
 # Function to add price details
@@ -73,13 +76,6 @@ def process_csv(file_path, global_counter):
         except (ValueError, TypeError):
             return None
 
-    # Function to safely convert to int
-    def safe_int_convert(x):
-        try:
-            return int(x)
-        except (ValueError, TypeError):
-            return None
-
     # Ensure columns are treated as strings and clean the data
     for col in ["ratings", "no_of_ratings", "actual_price", "discount_price"]:
         if col in df.columns:
@@ -93,7 +89,7 @@ def process_csv(file_path, global_counter):
 
     # Convert to numeric, handling NaNs and other non-numeric values
     df["ratings"] = df["ratings"].apply(safe_float_convert)
-    df["no_of_ratings"] = df["no_of_ratings"].apply(safe_int_convert)
+    df["no_of_ratings"] = df["no_of_ratings"].apply(safe_float_convert)
     df["actual_price"] = (
         df["actual_price"].str.replace("₹", "").apply(safe_float_convert)
     )
