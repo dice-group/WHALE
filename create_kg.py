@@ -20,8 +20,8 @@ def is_csv_empty(file_path):
 g = Graph()
 
 # Define namespaces
-wr = Namespace("https://whale.data.dice-research.org/resource/")
-wo = Namespace("https://whale.data.dice-research.org/ontology/")
+wr = Namespace("http://whale.data.dice-research.org/resource/")
+wo = Namespace("http://whale.data.dice-research.org/ontology/")
 xsd = Namespace("http://www.w3.org/2001/XMLSchema#")
 
 # Bind the namespaces to the graph
