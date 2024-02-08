@@ -39,6 +39,7 @@ g.add((wo.Product, RDF.type, RDFS.Class))
 g.add((wo.ActualPrice, RDFS.subClassOf, wo.Price))
 g.add((wo.DiscountPrice, RDFS.subClassOf, wo.Price))
 
+
 # Function to add triple if value is not NaN
 def add_triple_if_not_nan(subject, predicate, value, datatype):
     if pd.notna(value) and value is not None:
@@ -63,6 +64,7 @@ def add_price_details(price_uri, price_value, price_type):
         print(
             f"Error converting price value to float: {e} - Skipping price for {price_uri}"
         )
+
 
 # Process CSV Files
 def process_csv(file_path, global_counter):
@@ -141,8 +143,14 @@ def process_csv(file_path, global_counter):
 
 if __name__ == "__main__":
     # Set up argument parser
-    parser = argparse.ArgumentParser(description="This script processes CSV files to create a knowledge graph. The files are read from a specified dataset directory.")
-    parser.add_argument("--dataset", default="Data", help="The name of the folder containing the dataset. Default is 'Data'.")
+    parser = argparse.ArgumentParser(
+        description="This script processes CSV files to create a knowledge graph. The files are read from a specified dataset directory."
+    )
+    parser.add_argument(
+        "--dataset",
+        default="Data",
+        help="The name of the folder containing the dataset. Default is 'Data'.",
+    )
 
     # Parse arguments
     args = parser.parse_args()
@@ -191,7 +199,7 @@ if __name__ == "__main__":
     g.serialize(destination="knowledge_graph.ttl", format="turtle")
     # Serialize the graph to RDF/XML (commonly used with .owl files)
     g.serialize(destination="knowledge_ontology.owl", format="application/rdf+xml")
-    
+
     end_time = time.perf_counter()
     total_time = end_time - start_time
 
