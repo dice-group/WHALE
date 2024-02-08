@@ -4,6 +4,9 @@ empty_csv_files.txt
 knowledge_graph.ttl
 knowledge_ontology.owl
 .vscode/
+.vscode-server/
+.conda/
+*.sh
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
