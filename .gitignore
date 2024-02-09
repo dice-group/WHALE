@@ -1,4 +1,4 @@
-test_kg.ipynb
+*.ipynb
 Data/*.csv
 empty_csv_files.txt
 knowledge_graph.ttl
@@ -171,3 +171,4 @@ cython_debug/
 *.owl
 *.zip
 test_kg.py
+*.out
