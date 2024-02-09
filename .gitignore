@@ -170,6 +170,5 @@ cython_debug/
 *.ttl
 *.owl
 *.zip
-test_kg.py
 *.out
 *.pkl
