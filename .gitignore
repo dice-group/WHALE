@@ -172,3 +172,4 @@ cython_debug/
 *.zip
 test_kg.py
 *.out
+*.pkl
