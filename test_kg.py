@@ -81,6 +81,6 @@ def load_and_run_test(file, save_filename):
     run_queries(g)
 
 if __name__ == "__main__":
-    file = "knowledge_graph.owl"
+    file = "knowledge_graph.ttl"
     save_filename = "saved_graph.pkl"
     load_and_run_test(file, save_filename)
