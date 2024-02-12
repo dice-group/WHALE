@@ -1,10 +1,14 @@
-from rdflib import Graph, Literal, Namespace
-from rdflib.namespace import RDF, RDFS, XSD
+from rdflib import Graph, Literal, Namespace, RDF, RDFS, XSD, OWL
 import os
 import pandas as pd
 from tqdm import tqdm
 import time
 import argparse
+import logging
+
+# Basic configuration for logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 
 # Function to check if a CSV file is empty (only headers)
@@ -20,51 +24,53 @@ def is_csv_empty(file_path):
 g = Graph()
 
 # Define namespaces
-wr = Namespace("http://whale.data.dice-research.org/resource/")
+wr = Namespace("http://whale.data.dice-research.org/resource#")
 wo = Namespace("http://whale.data.dice-research.org/ontology/")
-xsd = Namespace("http://www.w3.org/2001/XMLSchema#")
 
 # Bind the namespaces to the graph
 g.bind("wr", wr)
 g.bind("wo", wo)
-g.bind("xsd", xsd)
 
-# Add class definitions to the graph
-g.add((wo.Price, RDF.type, RDFS.Class))
-g.add((wo.ActualPrice, RDF.type, RDFS.Class))
-g.add((wo.DiscountPrice, RDF.type, RDFS.Class))
-g.add((wo.Product, RDF.type, RDFS.Class))
+# Declare the ontology itself
+g.add((wo[""], RDF.type, OWL.Ontology))
 
-# Specify subclass relationships
-g.add((wo.ActualPrice, RDFS.subClassOf, wo.Price))
-g.add((wo.DiscountPrice, RDFS.subClassOf, wo.Price))
+# Define OWL ontology - Classes
+g.add((wo.Product, RDF.type, OWL.Class))
+g.add((wo.MainCategory, RDF.type, OWL.Class))
+g.add((wo.SubCategory, RDF.type, OWL.Class))
+
+# Define OWL ontology - Subclass
+g.add((wo.SubCategory, RDFS.subClassOf, wo.MainCategory))
+
+# Define OWL ontology - Properties with their domains and ranges
+properties = {
+    wo.hasName: XSD.string,
+    wo.hasImage: XSD.anyURI,
+    wo.hasLink: XSD.anyURI,
+    wo.hasRatings: XSD.int,
+    wo.hasCurrency: XSD.string,
+    wo.hasSymbol: XSD.string,
+    wo.hasActualPrice: XSD.float,
+    wo.hasDiscountPrice: XSD.float,
+}
+
+# Loop through properties to set them as DatatypeProperty and define their domain and range
+for prop, rng in properties.items():
+    g.add((prop, RDF.type, OWL.DatatypeProperty))
+    g.add((prop, RDFS.domain, wo.Product))
+    g.add((prop, RDFS.range, rng))
 
 
 # Function to add triple if value is not NaN
-def add_triple_if_not_nan(subject, predicate, value, datatype):
+def add_triple_if_not_nan(subject, predicate, value, datatype, lang=None):
     if pd.notna(value) and value is not None:
         if datatype is XSD.int:
             g.add((subject, predicate, Literal(int(value), datatype=datatype)))
+        elif lang:
+            # Add the triple with a language tag, without specifying datatype
+            g.add((subject, predicate, Literal(value, lang=lang)))
         else:
             g.add((subject, predicate, Literal(value, datatype=datatype)))
-
-
-# Function to add price details
-def add_price_details(price_uri, price_value, price_type):
-    try:
-        # Attempt to convert the price value to float
-        price_value_float = float(price_value)
-        g.add((price_uri, RDF.type, price_type))
-        g.add(
-            (price_uri, wo.hasCurrency, Literal("Indian Rupees", datatype=XSD.string))
-        )
-        g.add((price_uri, wo.hasSymbol, Literal("₹", datatype=XSD.string)))
-        g.add((price_uri, wo.hasAmount, Literal(price_value_float, datatype=XSD.float)))
-    except ValueError as e:
-        print(
-            f"Error converting price value to float: {e} - Skipping price for {price_uri}"
-        )
-
 
 # Process CSV Files
 def process_csv(file_path, global_counter):
@@ -75,7 +81,8 @@ def process_csv(file_path, global_counter):
     def safe_float_convert(x):
         try:
             return float(x)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
+            logging.exception(f"An error occurred: {e}")
             return None
 
     # Ensure columns are treated as strings and clean the data
@@ -106,13 +113,14 @@ def process_csv(file_path, global_counter):
         desc=f"Processing {os.path.basename(file_path)}",
     ):
         product_uri = wr[f"r{global_counter}"]  # URI for the product
+        g.add((product_uri, RDF.type, OWL.NamedIndividual))
         g.add((product_uri, RDF.type, wo.Product))
-        add_triple_if_not_nan(product_uri, wo.hasName, row["name"], XSD.string)
+        add_triple_if_not_nan(product_uri, wo.hasName, row["name"], XSD.string, "en")
         add_triple_if_not_nan(
-            product_uri, wo.hasMainCategory, row["main_category"], XSD.string
+            product_uri, wo.MainCategory, row["main_category"], XSD.string, "en"
         )
         add_triple_if_not_nan(
-            product_uri, wo.hasSubCategory, row["sub_category"], XSD.string
+            product_uri, wo.SubCategory, row["sub_category"], XSD.string, "en"
         )
         add_triple_if_not_nan(product_uri, wo.hasImage, row["image"], XSD.anyURI)
         add_triple_if_not_nan(product_uri, wo.hasLink, row["link"], XSD.anyURI)
@@ -120,21 +128,11 @@ def process_csv(file_path, global_counter):
         add_triple_if_not_nan(
             product_uri, wo.hasNumberOfRatings, row["no_of_ratings"], XSD.int
         )
-
-        # Check for actual price and add details
-        if pd.notna(row["actual_price"]):
-            actual_price_uri = wr[f"r{global_counter}_act_price1"]
-            add_price_details(actual_price_uri, row["actual_price"], wo.ActualPrice)
-            g.add((product_uri, wo.hasActualPrice, actual_price_uri))
-
-        # Check for discount price and add details
-        if pd.notna(row["discount_price"]):
-            discount_price_uri = wr[f"r{global_counter}_dis_price1"]
-            add_price_details(
-                discount_price_uri, row["discount_price"], wo.DiscountPrice
-            )
-            g.add((product_uri, wo.hasDiscountPrice, discount_price_uri))
-
+        add_triple_if_not_nan(product_uri, wo.hasCurrency, "Indian Rupees", XSD.string)
+        add_triple_if_not_nan(product_uri, wo.hasSymbol, "₹", XSD.string)
+        add_triple_if_not_nan(product_uri, wo.hasActualPrice, float(row["actual_price"]), XSD.float)
+        add_triple_if_not_nan(product_uri, wo.hasDiscountPrice, float(row["discount_price"]), XSD.float)
+        
         # Increment the global counter
         global_counter += 1
 
@@ -158,6 +156,7 @@ if __name__ == "__main__":
     # Use the dataset argument as the folder name
     dataset_folder = args.dataset
     extraction_path = os.path.join(os.getcwd(), dataset_folder)
+    logging.info(f"Processing dataset in folder: {dataset_folder}")
 
     # List all files in the extracted directory and check for empty CSVs
     empty_csv_files = []
@@ -190,18 +189,16 @@ if __name__ == "__main__":
             )
 
     num_triples = len(g)
-    print(f"Number of triples in the graph: {num_triples}")
+    logging.info(f"Number of triples in the graph: {num_triples}")
 
-    print("Serializing the graph... \n")
+    logging.info("Serializing the graph...")
 
     start_time = time.perf_counter()
     # Serialize the graph
     g.serialize(destination="knowledge_graph.ttl", format="turtle")
-    # Serialize the graph to RDF/XML (commonly used with .owl files)
-    g.serialize(destination="knowledge_ontology.owl", format="application/rdf+xml")
 
     end_time = time.perf_counter()
     total_time = end_time - start_time
 
-    print("Done.\n")
-    print(f"Serialization took {total_time:.4f} seconds ")
+    logging.info("Done.")
+    logging.info(f"Serialization took {total_time:.4f} seconds")
