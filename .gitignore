@@ -172,3 +172,4 @@ cython_debug/
 *.zip
 *.out
 *.pkl
+knowledge_graph.nt
