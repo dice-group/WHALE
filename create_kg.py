@@ -6,9 +6,14 @@ import time
 import argparse
 import logging
 
-# Basic configuration for logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+import warnings
 
+warnings.filterwarnings("ignore")
+
+# Basic configuration for logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 # Function to check if a CSV file is empty (only headers)
@@ -22,6 +27,7 @@ def is_csv_empty(file_path):
 
 # Initialize a graph
 g = Graph()
+g_ont = Graph()
 
 # Define namespaces
 wr = Namespace("http://whale.data.dice-research.org/resource#")
@@ -30,14 +36,20 @@ wo = Namespace("http://whale.data.dice-research.org/ontology/")
 # Bind the namespaces to the graph
 g.bind("wr", wr)
 g.bind("wo", wo)
+g_ont.bind("wr", wr)
+g_ont.bind("wo", wo)
 
 # Declare the ontology itself
 g.add((wo[""], RDF.type, OWL.Ontology))
+g_ont.add((wo[""], RDF.type, OWL.Ontology))
 
 # Define OWL ontology - Classes
 g.add((wo.Product, RDF.type, OWL.Class))
+g_ont.add((wo.Product, RDF.type, OWL.Class))
 g.add((wo.MainCategory, RDF.type, OWL.Class))
+g_ont.add((wo.MainCategory, RDF.type, OWL.Class))
 g.add((wo.SubCategory, RDF.type, OWL.Class))
+g_ont.add((wo.SubCategory, RDF.type, OWL.Class))
 
 # Define OWL ontology - Subclass
 g.add((wo.SubCategory, RDFS.subClassOf, wo.MainCategory))
@@ -57,8 +69,11 @@ properties = {
 # Loop through properties to set them as DatatypeProperty and define their domain and range
 for prop, rng in properties.items():
     g.add((prop, RDF.type, OWL.DatatypeProperty))
+    g_ont.add((prop, RDF.type, OWL.DatatypeProperty))
     g.add((prop, RDFS.domain, wo.Product))
+    g_ont.add((prop, RDFS.domain, wo.Product))
     g.add((prop, RDFS.range, rng))
+    g_ont.add((prop, RDFS.range, rng))
 
 
 # Function to add triple if value is not NaN
@@ -72,6 +87,7 @@ def add_triple_if_not_nan(subject, predicate, value, datatype, lang=None):
         else:
             g.add((subject, predicate, Literal(value, datatype=datatype)))
 
+
 # Process CSV Files
 def process_csv(file_path, global_counter):
     # Load the CSV file into a pandas DataFrame
@@ -81,8 +97,7 @@ def process_csv(file_path, global_counter):
     def safe_float_convert(x):
         try:
             return float(x)
-        except (ValueError, TypeError) as e:
-            logging.exception(f"An error occurred: {e}")
+        except (ValueError, TypeError):
             return None
 
     # Ensure columns are treated as strings and clean the data
@@ -114,7 +129,9 @@ def process_csv(file_path, global_counter):
     ):
         product_uri = wr[f"r{global_counter}"]  # URI for the product
         g.add((product_uri, RDF.type, OWL.NamedIndividual))
+        g_ont.add((product_uri, RDF.type, OWL.NamedIndividual))
         g.add((product_uri, RDF.type, wo.Product))
+        g_ont.add((product_uri, RDF.type, wo.Product))
         add_triple_if_not_nan(product_uri, wo.hasName, row["name"], XSD.string, "en")
         add_triple_if_not_nan(
             product_uri, wo.MainCategory, row["main_category"], XSD.string, "en"
@@ -130,9 +147,13 @@ def process_csv(file_path, global_counter):
         )
         add_triple_if_not_nan(product_uri, wo.hasCurrency, "Indian Rupees", XSD.string)
         add_triple_if_not_nan(product_uri, wo.hasSymbol, "₹", XSD.string)
-        add_triple_if_not_nan(product_uri, wo.hasActualPrice, float(row["actual_price"]), XSD.float)
-        add_triple_if_not_nan(product_uri, wo.hasDiscountPrice, float(row["discount_price"]), XSD.float)
-        
+        add_triple_if_not_nan(
+            product_uri, wo.hasActualPrice, float(row["actual_price"]), XSD.float
+        )
+        add_triple_if_not_nan(
+            product_uri, wo.hasDiscountPrice, float(row["discount_price"]), XSD.float
+        )
+
         # Increment the global counter
         global_counter += 1
 
@@ -196,6 +217,7 @@ if __name__ == "__main__":
     start_time = time.perf_counter()
     # Serialize the graph
     g.serialize(destination="knowledge_graph.ttl", format="turtle")
+    g_ont.serialize(destination="ontology.owl", format="turtle")
 
     end_time = time.perf_counter()
     total_time = end_time - start_time
