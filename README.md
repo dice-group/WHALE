@@ -27,14 +27,21 @@ For example, to run the script with CSV files in the default **Data** folder, si
 python create_kg.py --dataset Data
 ```
 
-
 ### Arguments
 
 - `--dataset`: Specifies the name of the folder containing the dataset. If not provided, the default folder used is **Data**. This folder should be located in the same directory as the script.
 
 ## Output
 
-The script outputs a human readable Turtle file (`knowledge_graph.ttl`) and an ontology file (`knowledge_ontology.owl`) containing the knowledge graph generated from the CSV files. These files are stored in the same directory as the script.
+The script outputs a human readable Turtle file (`knowledge_graph.ttl`) and an ontology file (`knowledge_graph.owl`) in the form of RDF/XML format containing the knowledge graph generated from the CSV files. These files are stored in the same directory as the script.
+
+## Testing
+*Note:* The testing takes a huge amount of RAM memory, so it is best to run it in a HPC cluster. Preferably with `#SBATCH --mem=60G`.
+
+To check the validity of the produced files, you can parse it using the [Rasqal RDF Query Library](https://librdf.org/rasqal/) or by running the `test_kg.py` file using the following command:
+```bash
+python3 test_kg.py
+```
 
 ## Challenges Addressed
 ### 1. Data Cleaning
