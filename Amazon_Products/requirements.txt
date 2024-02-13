@@ -2,3 +2,4 @@ rdflib
 pandas
 tqdm
 joblib
+dvc
