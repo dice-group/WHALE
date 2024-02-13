@@ -33,7 +33,7 @@ python create_kg.py --dataset Data
 
 ## Output
 
-The script outputs a human readable Turtle file (`knowledge_graph.ttl`) and an ontology file (`knowledge_graph.owl`) in the form of RDF/XML format containing the knowledge graph generated from the CSV files. These files are stored in the same directory as the script.
+The script outputs a human readable Turtle file (`knowledge_graph.ttl`) and an ontology file (`ontology.owl`) in the form of RDF/XML format containing the knowledge graph generated from the CSV files. These files are stored in the same directory as the script.
 
 ## Testing
 *Note:* The testing takes a huge amount of RAM memory, so it is best to run it in a HPC cluster. Preferably with `#SBATCH --mem=60G`.
