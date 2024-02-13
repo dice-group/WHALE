@@ -167,7 +167,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--dataset",
-        default="Data",
+        default="../Data",
         help="The name of the folder containing the dataset. Default is 'Data'.",
     )
 
