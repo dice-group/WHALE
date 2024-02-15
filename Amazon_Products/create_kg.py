@@ -53,6 +53,7 @@ g_ont.add((wo.SubCategory, RDF.type, OWL.Class))
 
 # Define OWL ontology - Subclass
 g.add((wo.SubCategory, RDFS.subClassOf, wo.MainCategory))
+g_ont.add((wo.SubCategory, RDFS.subClassOf, wo.MainCategory))
 
 # Define OWL ontology - Properties with their domains and ranges
 properties = {
