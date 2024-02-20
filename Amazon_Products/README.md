@@ -10,26 +10,18 @@
 Execute the script from the command line:
 
 ```bash
-python create_kg.py
-```
-
-If you want to specify the dataset folder:
-
-```bash
-python create_kg.py --dataset <folder_name>
+python3 create_kg.py --dataset folder_name --kg-output knowledge_graph.ttl --ont-output ontology.owl
 ```
 
 Replace `<folder_name>` with the name of the folder containing your CSV files. This folder should be located in the same directory as the script.
 
-For example, to run the script with CSV files in the default **Data** folder, simply execute:
-
-```bash
-python create_kg.py --dataset Data
-```
+There are other user arguments that can be passed in the CLI. 
 
 ### Arguments
 
 - `--dataset`: Specifies the name of the folder containing the dataset. If not provided, the default folder used is **Data**. This folder should be located in the same directory as the script.
+- `--kg-output` represents the filename for the output knowledge graph. Default is `knowledge_graph.ttl`.
+- `--ont-output` represents the filename for the output ontology. Default is `ontology.owl`.
 
 ## Output
 
