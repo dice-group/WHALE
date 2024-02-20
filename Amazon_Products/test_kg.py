@@ -67,7 +67,7 @@ def run_queries(g):
     SELECT (COUNT(DISTINCT ?mainCategory) as ?numMainCategories)
     WHERE {
       ?product a wo:Product ;
-               wo:MainCategory ?mainCategory .
+               wo:hasMainCategory ?mainCategory .
     }
     """
     for row in g.query(query_num_main_categories):
@@ -80,7 +80,7 @@ def run_queries(g):
     SELECT (COUNT(DISTINCT ?subCategory) as ?numSubCategories)
     WHERE {
       ?product a wo:Product ;
-               wo:SubCategory ?subCategory .
+               wo:hasSubCategory ?subCategory .
     }
     """
     for row in g.query(query_num_sub_categories):
@@ -111,7 +111,7 @@ def load_and_run_test(file, save_filename="saved_graph.pkl"):
         format_type = "ttl" if file.endswith(".ttl") else "xml"
         g = Graph()
         g.parse(file, format=format_type)
-        save_graph(g, save_filename)
+        # save_graph(g, save_filename)
 
     run_queries(g)
 
