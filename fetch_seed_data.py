@@ -14,6 +14,7 @@ parser = argparse.ArgumentParser(description="Fetch data from DBpedia or Wikidat
 parser.add_argument(
     "dataset",
     type=str,
+    default="wikidata",
     choices=["dbpedia", "wikidata"],
     help="The dataset to fetch data from ('dbpedia' or 'wikidata').",
 )
@@ -77,10 +78,7 @@ def safe_query(sparql, retries=3, delay=5):
 def get_query(dataset, last_uri=None, limit=10000):
     filter_clause = ""
     if last_uri:
-        if dataset == "dbpedia":
-            filter_clause = f'FILTER (STR(?entity) > "{last_uri}")'
-        elif dataset == "wikidata":
-            filter_clause = f'FILTER (STR(?entity) > "wd:{last_uri}")'
+        filter_clause = f'FILTER (STR(?entity) > "{last_uri}")'
 
     if dataset == "dbpedia":
         return f"""
@@ -108,11 +106,12 @@ def get_query(dataset, last_uri=None, limit=10000):
         PREFIX bd: <http://www.bigdata.com/rdf#>
 
         SELECT DISTINCT ?entity WHERE {{
-          ?class wdt:P31 wd:Q16889133. # Items that are instances of "class"
-          ?entity wdt:P31 ?class.
-          SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
-          FILTER EXISTS {{ ?entity rdfs:label ?label FILTER(LANG(?label) = "en") }}
-          {filter_clause}
+            ?class wdt:P31 wd:Q16889133. # Items that are instances of "class"
+            ?subclass wdt:P279* ?class. # Items that are subclasses of the class
+            ?entity wdt:P31 ?subclass. # Items that are instances of the subclass
+            SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
+            FILTER EXISTS {{ ?entity rdfs:label ?label FILTER(LANG(?label) = "en") }}
+            {filter_clause}
         }}
         ORDER BY ?entity
         LIMIT {limit}
@@ -124,7 +123,7 @@ def fetch_entities_and_save(dataset, endpoint, last_fetched_uri, filename):
     sparql = SPARQLWrapper(endpoint)
     sparql.setReturnFormat(JSON)
     last_uri = last_fetched_uri
-    appended_entities = 0
+    appended_entities = initial_entry_count
 
     while True:
         query = get_query(dataset, last_uri)
