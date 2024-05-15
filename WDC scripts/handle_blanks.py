@@ -16,26 +16,36 @@ def transform_line(line):
     return line
 
 def count_output_lines(file_path):
+    logging.info(f'Counting lines in the existing output file: {file_path}')
     with open(file_path, 'r', encoding='utf-8') as file:
         return sum(1 for _ in file)
 
+def get_last_processed_line(progress_file, output_file):
+    if os.path.exists(progress_file) and os.path.getsize(progress_file) > 0:
+        logging.info(f'Reading last processed line from progress log: {progress_file}')
+        with open(progress_file, 'r') as pfile:
+            return int(pfile.read().strip() or 0)
+    elif os.path.exists(output_file) and os.path.getsize(output_file) > 0:
+        logging.info(f'Progress log is empty or missing, using output file to determine the last processed line.')
+        return count_output_lines(output_file)
+    else:
+        logging.info('No progress log or output file found. Starting from the beginning.')
+        return 0
+    
 def write_progress(progress_file, line_number):
     with open(progress_file, 'w') as pfile:
         pfile.write(str(line_number))
 
 def process_file(input_file, output_file, progress_file):
     try:
-        last_line_number = count_output_lines(output_file)
+        last_line_number = get_last_processed_line(progress_file, output_file)
         write_progress(progress_file, last_line_number)  # Initialize progress log with the starting line
-
-        # if os.path.exists(progress_file):
-        #     with open(progress_file, 'r') as pfile:
-        #         last_line_number = int(pfile.read().strip() or 0)
 
         # Get the size of the file in bytes for the progress bar
         file_size = os.path.getsize(input_file)
         progress_bar = tqdm(desc="Materializing blank nodes", total=file_size, unit='B', unit_scale=True, unit_divisor=1024, initial=last_line_number)
 
+        logging.info(f'Starting processing from line {last_line_number}')
         with open(input_file, 'r', encoding='utf-8') as infile, open(output_file, 'a' if last_line_number > 0 else 'w', encoding='utf-8') as outfile:
             for line_number, line in enumerate(infile, 1):
                 if line_number <= last_line_number:
@@ -49,6 +59,9 @@ def process_file(input_file, output_file, progress_file):
         
         progress_bar.close()
         logging.info(f'File processed successfully: {input_file} -> {output_file}')
+        if os.path.exists(progress_file):
+            os.remove(progress_file)  # Clean up the progress log on successful completion
+            logging.info(f'Removed progress log: {progress_file}')
     except Exception as e:
         logging.error(f'Error processing file {input_file}: {str(e)}')
         progress_bar.close()
