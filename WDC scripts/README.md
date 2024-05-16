@@ -50,7 +50,7 @@ The script is structured as follows:
 
 ## Experiment Idea
 
-To see which method is more suitable to read the whole dataset of 20TB efficiently. We used `dask`, which uses distributed system and runs `pandas` under the hood for reading huge datasets, [`numpy.memmap`](https://numpy.org/doc/stable/reference/generated/numpy.memmap.html) approach for indexing the data, and `pandas.read_csv` with [`memory_map`](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html#:~:text=memory_mapbool%2C%20default%20False), and [`chunksize`](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html#:~:text=chunksizeint%2C%20optional) attributes to use memory efficiently.
+To see which method is more suitable to read the [whole dataset](https://files.dice-research.org/datasets/WHALE/WDC/wdc_oct_23.nq-all.tar.gz) of 20TB efficiently. We used `dask`, which uses distributed system and runs `pandas` under the hood for reading huge datasets, [`numpy.memmap`](https://numpy.org/doc/stable/reference/generated/numpy.memmap.html) approach for indexing the data, and `pandas.read_csv` with [`memory_map`](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html#:~:text=memory_mapbool%2C%20default%20False), and [`chunksize`](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html#:~:text=chunksizeint%2C%20optional) attributes to use memory efficiently.
 
 ## Experiment Setup
 
@@ -80,7 +80,7 @@ Replace `<file_path>` with the path to your dataset file, `<chunksize>` with the
 
 ## Results
 
-For subset dataset of RDFa format with $152.6$ GB filesize, all the three approaches were successfully after to calculate the following data:
+For subset dataset of [RDFa](https://files.dice-research.org/datasets/WHALE/WDC/rdfa/transformed_rdfa_train.txt) format with $152.6$ GB filesize, all the three approaches were successfully after to calculate the following data:
 
 ```
 Total number of triples: 865539636
