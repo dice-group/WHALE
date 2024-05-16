@@ -150,7 +150,7 @@ def process_large_dataset(file_path, library="pandas", chunksize=1000000):
                 chunk_data = mmap[start:end]
 
                 futures.append(
-                    executor.submit(process_chunk, chunk_data, chunk_size_bytes)
+                    futures.append(executor.submit(process_chunk, chunk_data))
                 )
 
             for future in tqdm(futures, desc="Collecting results"):
