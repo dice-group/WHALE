@@ -145,3 +145,15 @@ def main():
     parser = argparse.ArgumentParser(
         description="Process a large dataset file to count RDF triples, unique entities, and relations."
     )
+    parser.add_argument("file_path", type=str, help="The file path to the large dataset file.")
+    parser.add_argument("--library", type=str, choices=['pandas', 'dask', 'numpy'], default='pandas',
+                        help="Specify the library to use for processing the dataset.")
+    parser.add_argument("--chunksize", type=int, default=1000000,
+                        help="Specify the library to use for processing the dataset.")
+    args = parser.parse_args()
+
+    process_large_dataset(args.file_path, chunksize=args.chunksize, library=args.library)
+
+if __name__ == "__main__":
+    main()
+
