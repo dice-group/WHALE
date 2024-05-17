@@ -19,7 +19,7 @@ def process_chunk(chunk_data):
         data = [
             line.split()
             for line in chunk
-            if len(line.split()) == 5 and line.split()[4] == "."
+            if len(line.split()) == 4 and line.split()[3] == "."
         ]
         data = np.array(
             [[parts[0], parts[1], parts[2]] for parts in data], dtype=str
