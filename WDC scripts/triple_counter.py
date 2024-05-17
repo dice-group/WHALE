@@ -15,30 +15,27 @@ logging.basicConfig(
 
 def process_chunk(chunk_data):
     try:
-        chunk = chunk_data.tobytes().decode("utf-8").splitlines()
-        data = [
-            line.split()
-            for line in chunk
-            if len(line.split()) == 4 and line.split()[3] == "."
-        ]
-        data = np.array(
-            [[parts[0], parts[1], parts[2]] for parts in data], dtype=str
-        )  # Ignore the context element
-        chunk_df = pd.DataFrame(data, columns=["subject", "relation", "object"])
+        chunk = chunk_data.tobytes().decode('utf-8').splitlines()
+        data = [line.split() for line in chunk if len(line.split()) == 4 and line.split()[3] == '.']
+        
+        if not data:  # If no data matches the condition, create an empty DataFrame with the appropriate columns
+            chunk_df = pd.DataFrame(columns=['subject', 'predicate', 'object'])
+        else:
+            data = np.array([[parts[0], parts[1], parts[2]] for parts in data], dtype=str)  # Ignore the context element
+            chunk_df = pd.DataFrame(data, columns=['subject', 'predicate', 'object'])
 
         total_triples = len(chunk_df)
-        unique_entities = set(chunk_df["subject"].unique()).union(
-            set(chunk_df["object"].unique())
-        )
-        unique_relations = set(chunk_df["relation"].unique())
+        unique_entities = set(chunk_df['subject'].unique()).union(set(chunk_df['object'].unique()))
+        unique_relations = set(chunk_df['predicate'].unique())
 
         memory_usage = chunk_df.memory_usage(deep=True).sum()
-        memory_usage_mb = memory_usage / (1024**2)
+        memory_usage_mb = memory_usage / (1024 ** 2)
 
         return total_triples, unique_entities, unique_relations, memory_usage_mb
     except Exception as e:
         logging.error(f"Error processing chunk: {str(e)}")
         return 0, set(), set(), 0.0
+
 
 
 def process_large_dataset(file_path, library="pandas", chunksize=1000000):
@@ -145,20 +142,29 @@ def process_large_dataset(file_path, library="pandas", chunksize=1000000):
         with ThreadPoolExecutor(max_workers=4) as executor:
             futures = []
             for i in tqdm(range(num_chunks), desc="Processing chunks"):
-                start = i * chunk_size_bytes
-                end = min(start + chunk_size_bytes, len(mmap))
-                chunk_data = mmap[start:end]
+                try:
+                    start = i * chunk_size_bytes
+                    end = min(start + chunk_size_bytes, len(mmap))
+                    chunk_data = mmap[start:end]
 
-                futures.append(
-                    futures.append(executor.submit(process_chunk, chunk_data))
-                )
+                    if len(chunk_data) > 0:
+                        future = executor.submit(process_chunk, chunk_data)
+                        futures.append(future)
+                    else:
+                        logging.warning(f"Skipped empty chunk at index {i}")
+                except Exception as e:
+                    logging.error(f"Error submitting chunk {i}: {str(e)}")
+                    continue
 
             for future in tqdm(futures, desc="Collecting results"):
-                result = future.result()
-                total_triples += result[0]
-                unique_entities.update(result[1])
-                unique_relations.update(result[2])
-                chunk_mem.append(result[3])
+                try:
+                    result = future.result()
+                    total_triples += result[0]
+                    unique_entities.update(result[1])
+                    unique_relations.update(result[2])
+                    chunk_mem.append(result[3])
+                except Exception as e:
+                    logging.error(f"Error collecting result from future: {str(e)}")
 
         logging.info(f"Total number of chunks: {chunk_count}")
         logging.info(
