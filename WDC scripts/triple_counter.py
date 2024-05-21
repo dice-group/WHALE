@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import logging
 import argparse
+import time
 from tqdm import tqdm
 import dask.dataframe as dd
 import numpy as np
@@ -15,21 +16,30 @@ logging.basicConfig(
 
 def process_chunk(chunk_data):
     try:
-        chunk = chunk_data.tobytes().decode('utf-8').splitlines()
-        data = [line.split() for line in chunk if len(line.split()) == 4 and line.split()[3] == '.']
-        
-        if not data:  # If no data matches the condition, create an empty DataFrame with the appropriate columns
-            chunk_df = pd.DataFrame(columns=['subject', 'predicate', 'object'])
+        chunk = chunk_data.tobytes().decode("utf-8").splitlines()
+        data = [
+            line.split()
+            for line in chunk
+            if len(line.split()) == 5 and line.split()[4] == "."
+        ]
+        if (
+            not data
+        ):  # If no data matches the condition, create an empty DataFrame with the appropriate columns
+            chunk_df = pd.DataFrame(columns=["subject", "predicate", "object"])
         else:
-            data = np.array([[parts[0], parts[1], parts[2]] for parts in data], dtype=str)  # Ignore the context element
-            chunk_df = pd.DataFrame(data, columns=['subject', 'predicate', 'object'])
+            data = np.array(
+                [[parts[0], parts[1], parts[2]] for parts in data], dtype=str
+            )  # Ignore the context element
+            chunk_df = pd.DataFrame(data, columns=["subject", "predicate", "object"])
 
         total_triples = len(chunk_df)
-        unique_entities = set(chunk_df['subject'].unique()).union(set(chunk_df['object'].unique()))
-        unique_relations = set(chunk_df['predicate'].unique())
+        unique_entities = set(chunk_df["subject"].unique()).union(
+            set(chunk_df["object"].unique())
+        )
+        unique_relations = set(chunk_df["predicate"].unique())
 
         memory_usage = chunk_df.memory_usage(deep=True).sum()
-        memory_usage_mb = memory_usage / (1024 ** 2)
+        memory_usage_mb = memory_usage / (1024**2)
 
         return total_triples, unique_entities, unique_relations, memory_usage_mb
     except Exception as e:
@@ -37,8 +47,9 @@ def process_chunk(chunk_data):
         return 0, set(), set(), 0.0
 
 
-
-def process_large_dataset(file_path, library="pandas", chunksize=1000000):
+def process_large_dataset(
+    file_path, library="pandas", chunksize=100_000_000, max_workers=128
+):
     path_parts = file_path.split(os.sep)
     relevant_path = os.sep.join(path_parts[-2:])
     logging.info(f"Processing file: {relevant_path}")
@@ -46,6 +57,8 @@ def process_large_dataset(file_path, library="pandas", chunksize=1000000):
     total_size = os.path.getsize(file_path)
     total_size_gb = total_size / (1024**3)
     logging.info(f"Total dataset size: {total_size_gb:.2f} GB")
+    
+    logging.info(f"Script configurations: \nLibrary: {library} \nChunksize: {chunksize} \nNumber of Workers: {max_workers}")
 
     unique_entities = set()
     unique_relations = set()
@@ -85,10 +98,18 @@ def process_large_dataset(file_path, library="pandas", chunksize=1000000):
 
         except Exception as e:
             logging.error(f"An error occurred: {str(e)}")
-
+            
     elif library == "dask":
         try:
-            client = Client()
+            scheduler_file = "scheduler.json"
+            while not os.path.exists(scheduler_file):
+                time.sleep(1)
+
+            # Connect to the Dask scheduler
+            client = Client(scheduler_file=scheduler_file)
+
+            # Optional: Print the client to check the connection status
+            print(client)
             logging.info("Dask client initialized.")
 
             ddf = dd.read_csv(
@@ -98,7 +119,7 @@ def process_large_dataset(file_path, library="pandas", chunksize=1000000):
                 usecols=[0, 1, 2],
                 dtype=str,
                 engine="python",
-                blocksize="256MB",
+                blocksize='512MB',
             )
             ddf = ddf.rename(columns={0: "subject", 1: "relation", 2: "object"})
 
@@ -139,8 +160,8 @@ def process_large_dataset(file_path, library="pandas", chunksize=1000000):
             return
 
         chunk_mem = []
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            futures = []
+        futures = []
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
             for i in tqdm(range(num_chunks), desc="Processing chunks"):
                 try:
                     start = i * chunk_size_bytes
@@ -193,13 +214,22 @@ def main():
     parser.add_argument(
         "--chunksize",
         type=int,
-        default=1000000,
+        default=100_000_000,
         help="Specify the library to use for processing the dataset.",
+    )
+    parser.add_argument(
+        "--max_workers",
+        type=int,
+        default=128,
+        help="Maximum number of workers to use for processing.",
     )
     args = parser.parse_args()
 
     process_large_dataset(
-        args.file_path, library=args.library, chunksize=args.chunksize
+        args.file_path,
+        library=args.library,
+        chunksize=args.chunksize,
+        max_workers=args.max_workers,
     )
 
 
