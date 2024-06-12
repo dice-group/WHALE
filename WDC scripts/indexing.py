@@ -29,6 +29,7 @@ class DataProcessor:
         self.hash_orig_map = {}
         self.next_entity_id = 0
         self.next_relation_id = 0
+        self.saved = False
 
     @staticmethod
     def hash_value(string):
@@ -41,7 +42,7 @@ class DataProcessor:
             mmap_dict.__setitem__(key, value)
         print(f"Dictionary saved to {mmap_file_path}")
 
-    def check_memory_and_save(self, data_dict, threshold=0.97, mmap_file_path='data_dict.mmap'):
+    def check_memory_and_save(self, data_dict, threshold=0.9, mmap_file_path='data_dict.mmap'):
         process = psutil.Process(os.getpid())
         memory_info = process.memory_info()
         memory_usage_gb = memory_info.rss / (1024 ** 3)
@@ -52,7 +53,8 @@ class DataProcessor:
 
         if usage_ratio > threshold:
             self.save_dict_to_mmapdict(data_dict, mmap_file_path)
-            data_dict.clear()
+            del data_dict
+            self.saved = True
 
     def timeit(func):
         @functools.wraps(func)
@@ -148,7 +150,7 @@ class DataProcessor:
 
         self.check_memory_and_save(self.mmap_relation, mmap_file_path='/dev/shm/relations_to_idx.p')
         return self.mmap_relation, self.hash_orig_map
-
+    
     @timeit
     def memory_map(self, file_lines):
         path_parts = self.file_path.split(os.sep)
@@ -198,6 +200,16 @@ class DataProcessor:
                     logging.info(
                         f"Memory size of ordered_list: {sys.getsizeof(ordered_list)}"
                     )
+                    
+                    if not self.saved:
+                        self.next_relation_id = len(self.mmap_relation.keys())
+                        self.hash_orig_map.update(relation_hash_map)
+                    else:
+                        self.next_relation_id = len(self.mmap_relation.keys())
+                        self.hash_orig_map.update(relation_hash_map)
+                        self.save_hash_map()
+                        self.mmap_relation.clear()
+                        self.hash_orig_map.clear()
 
                     start_time = time.perf_counter()
                     ordered_list = pd.unique(chunk[["subject", "object"]].values.ravel("K"))
@@ -223,19 +235,18 @@ class DataProcessor:
                         f"Current Memory Usage {psutil.Process(os.getpid()).memory_info().rss / (1024 ** 3): .5} in GB"
                     )
 
-                self.next_entity_id = len(self.mmap_entity.keys())
-                self.next_relation_id = len(self.mmap_relation.keys())
-
-                self.hash_orig_map.update(entity_hash_map)
-                self.hash_orig_map.update(relation_hash_map)
+                if not self.saved:
+                    self.next_entity_id = len(self.mmap_entity.keys())
+                    self.hash_orig_map.update(entity_hash_map)
+                else:
+                    self.next_entity_id = len(self.mmap_entity.keys())
+                    self.hash_orig_map.update(entity_hash_map)
+                    self.save_hash_map()                    
+                    self.mmap_entity.clear()
+                    self.hash_orig_map.clear()
 
                 pbar.update(self.chunksize)
                 first_chunk = False
-
-        self.hash_orig_map = dict(sorted(self.hash_orig_map.items(), key=lambda item: item[1]))
-
-        with open(os.path.join(self.output_dir, "hash_value_mapping.pickle"), "wb") as handle:
-            pickle.dump(self.hash_orig_map, handle)
 
         logging.info("Index mapping done...")
 
@@ -279,6 +290,11 @@ class DataProcessor:
                 logging.error(f"Memory size of all_chunks: {sys.getsizeof(all_chunks)}")
 
         logging.info(f"Done! The files are saved at {self.output_dir}")
+
+    def save_hash_map(self):
+        self.hash_orig_map = dict(sorted(self.hash_orig_map.items(), key=lambda item: item[1]))
+        with open(os.path.join(self.output_dir, "hash_value_mapping.pickle"), "wb") as handle:
+            pickle.dump(self.hash_orig_map, handle)
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
