@@ -9,6 +9,13 @@
 ## How to Run the Script
 Execute the script from the command line:
 
+Download dataset:
+```
+wget https://files.dice-research.org/datasets/dice-embeddings/amazon_product_dataset.zip 
+unzip amazon_product_dataset.zip
+```
+Or use the link (for windows users): https://files.dice-research.org/datasets/WHALE/amazon_product_dataset.zip
+
 ```bash
 python3 create_kg.py --dataset folder_name --kg-output knowledge_graph.ttl --ont-output ontology.owl
 ```
@@ -29,8 +36,6 @@ The script outputs a human readable Turtle file (`knowledge_graph.ttl`) and an o
 
 ## Testing
 *Note:* The testing takes a huge amount of RAM memory, so it is best to run it in a HPC cluster. Preferably with `#SBATCH --mem=60G`.
-
-Data download: https://files.dice-research.org/datasets/WHALE/amazon_product_dataset.zip
 
 To check the validity of the produced files, you can parse it using the [Rasqal RDF Query Library](https://librdf.org/rasqal/) or by running the `test_kg.py` file using the following command:
 ```bash
