@@ -47,7 +47,7 @@ class DomainProcessor:
             with open(filepath, 'w', encoding='utf-8') as f:
                 for line in lines:
                     f.write(line)
-        print(f"Files have been created in the '{self.output_message}' directory.")
+        print(f"Files have been created in the '{self.output_dir}' directory.")
 
     def display_counts(self):
         domain_counts = {domain: len(lines) for domain, lines in self.output_dict.items()}
