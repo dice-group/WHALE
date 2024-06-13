@@ -7,8 +7,6 @@
 - CSV data files placed in a specified folder
 
 ## How to Run the Script
-Execute the script from the command line:
-
 Download dataset:
 ```
 wget https://files.dice-research.org/datasets/dice-embeddings/amazon_product_dataset.zip 
@@ -16,6 +14,7 @@ unzip amazon_product_dataset.zip
 ```
 Or use the link (for windows users): https://files.dice-research.org/datasets/WHALE/amazon_product_dataset.zip
 
+Execute the script from the command line:
 ```bash
 python3 create_kg.py --dataset folder_name --kg-output knowledge_graph.ttl --ont-output ontology.owl
 ```
