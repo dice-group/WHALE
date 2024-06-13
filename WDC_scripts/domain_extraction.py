@@ -17,7 +17,11 @@ class DomainProcessor:
     def get_base_url(self, url):
         url = url.strip('<>')
         parsed_url = urlparse(url)
-        return f"{parsed_url.netloc}"
+        base_url = parsed_url.netloc
+        # Remove 'www.' if present
+        if base_url.startswith('www.'):
+            base_url = base_url[4:]  # Skip the first 4 characters which are 'www.'
+        return base_url
 
     def process_data(self):
         with open(self.data_path, 'r', encoding='utf-8') as file:
