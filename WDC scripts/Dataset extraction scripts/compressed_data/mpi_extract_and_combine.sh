@@ -1,6 +1,18 @@
 #!/bin/bash
 
 SOURCE_DIR="compressed_data/zips"
+
+# Check if the directory exists
+if [ ! -d "$SOURCE_DIR" ]; then
+    echo "Directory $SOURCE_DIR does not exist. Creating it now."
+    mkdir -p "$SOURCE_DIR"
+else
+    echo "Directory $SOURCE_DIR already exists."
+fi
+
+# Download the files using wget
+wget -i http://webdatacommons.org/structureddata/2023-12/files/file.list -P "$SOURCE_DIR"
+
 TARGET_DIR="compressed_data"
 LOG_DIR="$TARGET_DIR/logs"
 TEMP_DIR="$TARGET_DIR/temps"
