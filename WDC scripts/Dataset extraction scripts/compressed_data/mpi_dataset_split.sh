@@ -1,7 +1,7 @@
 #!/bin/bash
 
-SOURCE_DIR="/scratch/hpc-prf-dsg/WHALE-data/compressed_data/extract_and_combine/temps"
-OUTPUT_DIR="/scratch/hpc-prf-dsg/WHALE-data/compressed_data/train_test_val"
+SOURCE_DIR="compressed_data/extract_and_combine/temps"
+OUTPUT_DIR="compressed_data/train_test_val"
 LOG_DIR="$OUTPUT_DIR/logs"
 TRAIN_DIR="$OUTPUT_DIR/train"
 TEST_DIR="$OUTPUT_DIR/test"

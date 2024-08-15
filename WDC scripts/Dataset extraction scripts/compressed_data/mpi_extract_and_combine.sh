@@ -1,7 +1,7 @@
 #!/bin/bash
 
-SOURCE_DIR="/scratch/hpc-prf-dsg/WHALE-data/compressed_data/zips"
-TARGET_DIR="/scratch/hpc-prf-dsg/WHALE-data/compressed_data"
+SOURCE_DIR="compressed_data/zips"
+TARGET_DIR="compressed_data"
 LOG_DIR="$TARGET_DIR/logs"
 TEMP_DIR="$TARGET_DIR/temps"
 COUNT_DIR="$TARGET_DIR/counts"
