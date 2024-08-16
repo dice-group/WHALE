@@ -172,5 +172,5 @@ cython_debug/
 *.pkl
 knowledge_graph.nt
 *.log
-WDC scripts/linking scripts/limes/raw_data/wikidata_classes_by_language.csv
-WDC scripts/linking scripts/limes/raw_data/wikidata_classes.nt
+wikidata_classes_by_language.csv
+wikidata_classes.nt
