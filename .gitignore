@@ -171,3 +171,4 @@ cython_debug/
 *.out
 *.pkl
 knowledge_graph.nt
+*.log
