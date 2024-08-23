@@ -18,7 +18,7 @@ cycler==0.12.1
 dataclasses-json==0.6.3
 docdata==0.0.3
 exceptiongroup==1.2.0
-fastapi==0.109.0
+fastapi==0.109.1
 filelock==3.13.1
 fonttools==4.53.1
 frozenlist==1.4.1
