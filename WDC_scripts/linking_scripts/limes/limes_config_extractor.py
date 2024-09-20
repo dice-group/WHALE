@@ -12,17 +12,34 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 import xml.dom.minidom as minidom
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s',) #filename='processing.log', filemode='a')
+
 class RDFProcessor:
-    def __init__(self, base_directory):
-        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s',) #filename='processing.log', filemode='a')
+    def __init__(self, base_directory, config_output_path, output_path):
         self.base_directory = base_directory
         self.linked_classes = []
-        self.load_classes('output_files/WDC_wikidata_verynear.nt')
-        self.namespace_to_prefix = self.load_namespaces('raw_data/all_prefix.csv')
+        current_working_dir = os.getcwd()
+
+        # Check if the current working directory is already inside 'WDC_scripts/linking_scripts/limes'
+        if current_working_dir.endswith(os.path.join('WDC_scripts', 'linking_scripts', 'limes')):
+            class_mapping_file_relative_path = os.path.join('output_files', 'WDC_wikidata_verynear.nt')
+            namespace_file_relative_path = os.path.join('raw_data', 'all_prefix.csv')
+        else:
+            class_mapping_file_relative_path = os.path.join('WDC_scripts', 'linking_scripts', 'limes', 'output_files', 'WDC_wikidata_verynear.nt')
+            namespace_file_relative_path = os.path.join('WDC_scripts', 'linking_scripts', 'limes', 'raw_data', 'all_prefix.csv')
+
+        # Get the absolute paths
+        class_mapping_file_absolute_path = os.path.abspath(class_mapping_file_relative_path)
+        namespace_file_absolute_path = os.path.abspath(namespace_file_relative_path)
+
+        # Load the class mapping and namespace files using the absolute paths
+        self.load_classes(class_mapping_file_absolute_path)
+        self.namespace_to_prefix = self.load_namespaces(namespace_file_absolute_path)
+
         self.sparql = SPARQLWrapper("https://query.wikidata.org/sparql")
         self.total_count_wiki = 0
-        self.output_dir_path = 'output_files'# WINDOWS: os.path.join(self.base_directory, os.path.basename(os.path.dirname(file_path)))
-        self.config_dir_path = "config_files"
+        self.output_dir_path = output_path
+        self.config_dir_path = config_output_path
 
     def load_classes(self, filename):
         try:
@@ -133,7 +150,7 @@ class RDFProcessor:
                 
                 # Add to prefixed dictionary
                 prefixed_class_iri = self.replace_with_prefix(iri=local_class)
-                prefixed_properties = [self.replace_with_prefix(prop) for prop in filtered_properties]
+                prefixed_properties = {self.replace_with_prefix(prop) for prop in filtered_properties}
                 self.prefixed_iri_dict[prefixed_class_iri] = prefixed_properties
 
             if local_class in self.coverage_dict_local:
@@ -166,8 +183,8 @@ class RDFProcessor:
 
                     # Add to prefixed dictionary
                     prefixed_class_iri = self.replace_with_prefix(iri=wiki_class)
-                    prefixed_properties = [self.replace_with_prefix(prop) for prop in filtered_properties]
-                    prefixed_properties.append(self.replace_with_prefix("http://www.wikidata.org/prop/direct/P31"))
+                    prefixed_properties = {self.replace_with_prefix(prop) for prop in filtered_properties}
+                    prefixed_properties.add(self.replace_with_prefix("http://www.wikidata.org/prop/direct/P31"))
                     self.prefixed_iri_dict[prefixed_class_iri] = prefixed_properties
 
             comparison_result_local, self.prefixed_iri_dict = self.compare_dictionaries(self.class_properties_local, self.prefixed_iri_dict)
@@ -277,13 +294,13 @@ class RDFProcessor:
             # ACCEPTANCE section
             acceptance = ET.SubElement(limes, 'ACCEPTANCE')
             ET.SubElement(acceptance, 'THRESHOLD').text = '0.7'
-            ET.SubElement(acceptance, 'FILE').text = os.path.join(self.output_dir_path, accept_filename)# WINDOWS: os.path.join(os.path.join(*self.output_dir_path.split(os.sep)[5:]), accept_filename).replace("\\", "/")
+            ET.SubElement(acceptance, 'FILE').text = os.path.join(self.output_dir_path, accept_filename)
             ET.SubElement(acceptance, 'RELATION').text = 'owl:sameAs'
 
             # REVIEW section
             review = ET.SubElement(limes, 'REVIEW')
             ET.SubElement(review, 'THRESHOLD').text = '0.4'
-            ET.SubElement(review, 'FILE').text = os.path.join(self.output_dir_path, review_filename)# WINDOWS: os.path.join(os.path.join(*self.output_dir_path.split(os.sep)[5:]), review_filename).replace("\\", "/")
+            ET.SubElement(review, 'FILE').text = os.path.join(self.output_dir_path, review_filename)
             ET.SubElement(review, 'RELATION').text = 'owl:near'
 
             # EXECUTION section
@@ -295,21 +312,19 @@ class RDFProcessor:
             ET.SubElement(execution, 'EXPECTED_SELECTIVITY').text = '0.5'
             ET.SubElement(limes, 'OUTPUT').text = 'NT'
 
-            self.save_pretty_xml(limes, f'config_{os.path.basename(file_path)}_{idx}.xml', os.path.basename(os.path.dirname(file_path)))
+            self.save_pretty_xml(limes, filename=f'config_{os.path.basename(file_path)}_{idx}.xml')
 
-    def save_pretty_xml(self, element, filename, subdirectory):
+    def save_pretty_xml(self, element, filename):
         rough_string = ET.tostring(element, 'utf-8')
         reparsed = minidom.parseString(rough_string)
         pretty_xml_as_string = reparsed.toprettyxml(indent="  ")
-
         pretty_xml_as_string = '\n'.join(pretty_xml_as_string.split('\n')[1:])
 
-        output_dir_path = os.path.join(self.base_directory, os.path.join("config_files", subdirectory))
-
-        if not os.path.exists(output_dir_path):
-            os.makedirs(output_dir_path)
+        if not os.path.exists(self.config_dir_path):
+            os.makedirs(self.config_dir_path)
+            
         # Add XML declaration and DOCTYPE
-        with open(os.path.join(output_dir_path, filename), 'w', encoding='utf-8') as f:
+        with open(os.path.join(self.config_dir_path, filename), 'w', encoding='utf-8') as f:
             f.write('<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n')
             f.write('<!DOCTYPE LIMES SYSTEM "limes.dtd">\n')
             f.write(pretty_xml_as_string) 
@@ -428,6 +443,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='Process RDF data based on user input')
     parser.add_argument('action', choices=['all', 'wikidata', 'specific'], help='Specify "all" to process all subdirectories, "wikidata" for Wikidata endpoint, or "specific" for a specific directory or file.')
     parser.add_argument('--path', help='Specify the path to a directory or file when using "specific".')
+    parser.add_argument('--config_output_path', help='Specify the path to a directory for storing the config files".', required=True)
+    parser.add_argument('--output_path', help='Specify the path to a directory for output of config files".', required=True)
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -442,7 +459,7 @@ if __name__ == "__main__":
     else:
         logging.info(f"Directory already exists: {base_directory}")
         
-    rdf_processor = RDFProcessor(base_directory)
+    rdf_processor = RDFProcessor(base_directory, args.config_output_path, args.output_path)
     
     if args.action == 'all':
         rdf_subdirectories = [os.path.join(rdf_processor.base_directory, d) for d in os.listdir(rdf_processor.base_directory) if os.path.isdir(os.path.join(rdf_processor.base_directory, d))]
