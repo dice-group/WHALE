@@ -174,3 +174,5 @@ knowledge_graph.nt
 *.log
 wikidata_classes_by_language.csv
 wikidata_classes.nt
+*.xml
+*.nt
