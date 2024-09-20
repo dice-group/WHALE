@@ -441,11 +441,16 @@ class RDFProcessor:
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Process RDF data based on user input')
-    parser.add_argument('action', choices=['all', 'wikidata', 'specific'], help='Specify "all" to process all subdirectories, "wikidata" for Wikidata endpoint, or "specific" for a specific directory or file.')
-    parser.add_argument('--path', help='Specify the path to a directory or file when using "specific".')
-    parser.add_argument('--config_output_path', help='Specify the path to a directory for storing the config files".', required=True)
-    parser.add_argument('--output_path', help='Specify the path to a directory for output of config files".', required=True)
+    parser.add_argument('action', choices=['all', 'wikidata', 'specific'],
+                        help='Specify "all" to process all subdirectories, "wikidata" for Wikidata endpoint, or "specific" for a specific directory or file.')
+    parser.add_argument('-p', '--path',
+                        help='Specify the path to a directory or file when using "specific".')
+    parser.add_argument('-c', '--config_output_path',
+                        help='Specify the path to a directory for storing the config files.', required=True)
+    parser.add_argument('-o', '--output_path',
+                        help='Specify the path to a directory for output of config files.', required=True)
     return parser.parse_args()
+
 
 if __name__ == "__main__":
     args = parse_arguments()
