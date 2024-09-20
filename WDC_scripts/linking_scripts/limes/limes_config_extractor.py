@@ -444,7 +444,7 @@ def parse_arguments():
     parser.add_argument('action', choices=['all', 'wikidata', 'specific'],
                         help='Specify "all" to process all subdirectories, "wikidata" for Wikidata endpoint, or "specific" for a specific directory or file.')
     parser.add_argument('-p', '--path',
-                        help='Specify the path to a directory or file when using "specific".')
+                        help='Specify the path to an input directory or input KG file when using "specific".')
     parser.add_argument('-c', '--config_output_path',
                         help='Specify the path to a directory for storing the config files.', required=True)
     parser.add_argument('-o', '--output_path',
