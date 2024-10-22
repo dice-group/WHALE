@@ -15,7 +15,96 @@ import xml.dom.minidom as minidom
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s',)
 
 class RDFProcessor:
+    """
+    A class to process RDF data and generate configuration files for LIMES.
+
+    Parameters
+    ----------
+    base_directory : str
+        The base directory containing the RDF data.
+    config_output_path : str
+        The directory where configuration files will be stored.
+    output_path : str
+        The directory where output files will be stored.
+    class_mapping_path : str, optional
+        The path to the class mapping file. If not provided, a default path is used.
+    property_mapping_path : str, optional
+        The path to the property mapping file.
+    target_graph_path : str, optional
+        The path to the target graph file. If not provided, the Wikidata endpoint is used.
+
+    Attributes
+    ----------
+    linked_classes : list of tuple
+        List of tuples containing source and target classes.
+    linked_properties : list of tuple
+        List of tuples containing source and target properties.
+    namespace_to_prefix : dict
+        A dictionary mapping namespaces to prefixes.
+    prefix_namespace_dict : dict
+        A dictionary to keep track of prefixes used.
+    prefixed_iri_dict : dict
+        A dictionary mapping prefixed IRIs to properties.
+    nested_props : dict
+        A dictionary for nested properties.
+    output_dir_path : str
+        The directory where output files will be stored.
+    config_dir_path : str
+        The directory where configuration files will be stored.
+    total_count_target : int
+        Total count of target instances.
+    g_target : rdflib.Graph
+        The target RDF graph.
+
+    Methods
+    -------
+    load_classes(filename)
+        Loads the class mapping from the given file.
+    load_properties(filename)
+        Loads the property mapping from the given file.
+    load_namespaces(filename)
+        Loads namespaces and prefixes from the given file.
+    replace_with_prefix(iri)
+        Replaces a full IRI with its prefixed version.
+    execute_safe_query()
+        Executes a SPARQL query with retry logic.
+    process_directory(directory, class_set)
+        Processes all files in a directory.
+    process_file(file_path, class_set)
+        Processes a single RDF file.
+    create_xml(source_class, target_class, idx, file_path, use_property_mapping)
+        Creates an XML configuration file for LIMES.
+    save_pretty_xml(element, filename)
+        Saves an XML element to a file with pretty formatting.
+    query_graph(graph, class_uri)
+        Queries a graph to get instance counts and property coverage.
+    query_target_graph(target_class)
+        Queries the target graph or Wikidata to get instance counts and property coverage.
+    compare_dictionaries(original_dict, updated_dict)
+        Compares two dictionaries and updates the second with missing entries.
+    save_dictionaries(file_path)
+        Saves internal dictionaries to pickle files for debugging.
+    """
+
     def __init__(self, base_directory, config_output_path, output_path, class_mapping_path=None, property_mapping_path=None, target_graph_path=None):
+        """
+        Initializes the RDFProcessor.
+
+        Parameters
+        ----------
+        base_directory : str
+            The base directory containing the RDF data.
+        config_output_path : str
+            The directory where configuration files will be stored.
+        output_path : str
+            The directory where output files will be stored.
+        class_mapping_path : str, optional
+            The path to the class mapping file.
+        property_mapping_path : str, optional
+            The path to the property mapping file.
+        target_graph_path : str, optional
+            The path to the target graph file.
+        """
         self.base_directory = base_directory
         self.linked_classes = []
         self.linked_properties = []
@@ -69,6 +158,21 @@ class RDFProcessor:
             self.sparql = SPARQLWrapper("https://query.wikidata.org/sparql")
 
     def load_classes(self, filename):
+        """
+        Loads the class mapping from the given file.
+
+        The file should contain lines with two IRIs representing the source and target classes.
+
+        Parameters
+        ----------
+        filename : str
+            The path to the class mapping file.
+
+        Raises
+        ------
+        Exception
+            If the file cannot be read.
+        """
         try:
             with open(filename, 'r', encoding="utf-8") as file:
                 for line in file:
@@ -82,6 +186,21 @@ class RDFProcessor:
             logging.error("Failed to load Classes: " + str(e))
 
     def load_properties(self, filename):
+        """
+        Loads the property mapping from the given file.
+
+        The file should contain lines with two IRIs representing the source and target properties.
+
+        Parameters
+        ----------
+        filename : str
+            The path to the property mapping file.
+
+        Raises
+        ------
+        Exception
+            If the file cannot be read.
+        """
         try:
             with open(filename, 'r', encoding="utf-8") as file:
                 for line in file:
@@ -95,11 +214,44 @@ class RDFProcessor:
             logging.error("Failed to load properties: " + str(e))
 
     def load_namespaces(self, filename):
+        """
+        Loads namespaces and prefixes from the given file.
+
+        The file should be a CSV with 'prefix' and 'namespace' columns.
+
+        Parameters
+        ----------
+        filename : str
+            The path to the namespaces file.
+
+        Returns
+        -------
+        dict
+            A dictionary mapping namespaces to prefixes.
+        """
         df = pd.read_csv(filename, header=None, names=['prefix', 'namespace'])
         logging.info("Namespaces loaded successfully!")
         return dict(zip(df['namespace'], df['prefix']))
-    
+        
     def replace_with_prefix(self, iri):
+        """
+        Replaces a full IRI with its prefixed version using the loaded namespaces.
+
+        Parameters
+        ----------
+        iri : str
+            The full IRI to be replaced.
+
+        Returns
+        -------
+        str
+            The prefixed IRI.
+
+        Raises
+        ------
+        AssertionError
+            If the IRI does not start with any known namespace and contains a '/' character.
+        """
         for namespace, prefix in self.namespace_to_prefix.items():
             if iri.startswith(namespace):
                 self.prefix_namespace_dict[namespace] = prefix
@@ -108,6 +260,21 @@ class RDFProcessor:
         return iri
 
     def execute_safe_query(self):
+        """
+        Executes a SPARQL query with retry logic for transient errors.
+
+        Retries the query up to 5 times with exponential backoff if rate limiting occurs.
+
+        Returns
+        -------
+        dict
+            The JSON results of the query.
+
+        Raises
+        ------
+        Exception
+            If an unhandled exception occurs.
+        """
         base_delay = 1 
         for attempt in range(5):
             try:
@@ -132,11 +299,31 @@ class RDFProcessor:
                 return {}
 
     def process_directory(self, directory, class_set):
+        """
+        Processes all RDF files in the given directory.
+
+        Parameters
+        ----------
+        directory : str
+            The directory containing RDF files.
+        class_set : list of tuple
+            A list of tuples containing source and target classes.
+        """
         files = [f for f in os.listdir(directory) if f.endswith('.txt') or f.endswith('.nt')]
         for filename in tqdm(files, desc=f"Processing files in {directory}"):
             self.process_file(os.path.join(directory, filename), class_set)
 
     def process_file(self, file_path, class_set):
+        """
+        Processes a single RDF file and generates configuration files.
+
+        Parameters
+        ----------
+        file_path : str
+            The path to the RDF file.
+        class_set : list of tuple
+            A list of tuples containing source and target classes.
+        """
         g = rdflib.ConjunctiveGraph()
         try:
             logging.info(f"Loading source graph {os.path.basename(file_path)}...")
@@ -260,7 +447,7 @@ class RDFProcessor:
                         logging.debug("All keys and properties from the original dictionary are present in the updated dictionary.")
                     else:
                         logging.error("Some keys or properties from the original dictionary are missing in the updated dictionary.")
-                        
+                            
             self.create_xml(source_class, target_class, idx, file_path, use_property_mapping)
         
         if logging.getLevelName(logging.getLogger().getEffectiveLevel()) == "DEBUG":
@@ -268,6 +455,22 @@ class RDFProcessor:
         logging.info(f"Processed and saved data for {file_path}")
 
     def create_xml(self, source_class, target_class, idx, file_path, use_property_mapping):
+        """
+        Creates an XML configuration file for LIMES.
+
+        Parameters
+        ----------
+        source_class : str
+            The IRI of the source class.
+        target_class : str
+            The IRI of the target class.
+        idx : int
+            An index used for naming the configuration file.
+        file_path : str
+            The path to the source RDF file.
+        use_property_mapping : bool
+            Indicates whether to use the property mapping or coverage method.
+        """
         limes = ET.Element("LIMES")
 
         # Add owl prefix
@@ -401,6 +604,16 @@ class RDFProcessor:
         self.save_pretty_xml(limes, filename=f'config_{os.path.basename(file_path)}_{idx}.xml')
 
     def save_pretty_xml(self, element, filename):
+        """
+        Saves an XML element to a file with pretty formatting.
+
+        Parameters
+        ----------
+        element : xml.etree.ElementTree.Element
+            The XML element to save.
+        filename : str
+            The name of the output XML file.
+        """
         rough_string = ET.tostring(element, 'utf-8')
         reparsed = minidom.parseString(rough_string)
         pretty_xml_as_string = reparsed.toprettyxml(indent="  ")
@@ -416,6 +629,25 @@ class RDFProcessor:
             f.write(pretty_xml_as_string) 
 
     def query_graph(self, graph, class_uri):
+        """
+        Queries a graph to get the total instance count and property coverage for a given class.
+
+        Parameters
+        ----------
+        graph : rdflib.Graph
+            The RDF graph to query.
+        class_uri : str
+            The IRI of the class to query.
+
+        Returns
+        -------
+        total_count : int
+            The total number of instances of the class.
+        properties_info : dict
+            A dictionary mapping property IRIs to their occurrence counts.
+        nested_prop_dict : dict
+            A dictionary of nested properties.
+        """
         total_query = f"""
         SELECT (COUNT(DISTINCT ?i) AS ?orderCount)
         WHERE {{
@@ -458,6 +690,23 @@ class RDFProcessor:
             return 0, {}, {}
         
     def query_target_graph(self, target_class):
+        """
+        Queries the target graph or Wikidata to get instance counts and property coverage for a given class.
+
+        Parameters
+        ----------
+        target_class : str
+            The IRI of the target class.
+
+        Returns
+        -------
+        total_count : int
+            The total number of instances of the class.
+        properties_info : dict
+            A dictionary mapping property IRIs to their occurrence counts.
+        nested_prop_dict : dict
+            A dictionary of nested properties (empty if querying Wikidata).
+        """
         if self.target_graph_path:
             # Query the target graph file
             return self.query_graph(self.g_target, target_class)
@@ -490,8 +739,25 @@ class RDFProcessor:
             results = self.execute_safe_query()
             properties_info = {result['property']['value']: int(result['literalCount']['value']) for result in results["results"]["bindings"]}
             return total_count, properties_info, {}
-            
+                
     def compare_dictionaries(self, original_dict, updated_dict):
+        """
+        Compares two dictionaries and updates the second with missing entries.
+
+        Parameters
+        ----------
+        original_dict : dict
+            The original dictionary with class IRIs and properties.
+        updated_dict : dict
+            The updated dictionary to compare and update.
+
+        Returns
+        -------
+        bool
+            True if all keys and properties are present, False otherwise.
+        dict
+            The updated dictionary.
+        """
         for class_iri, properties in original_dict.items():
             prefixed_class_iri = self.replace_with_prefix(class_iri)
             if prefixed_class_iri not in updated_dict:
@@ -506,6 +772,14 @@ class RDFProcessor:
         return True, updated_dict
 
     def save_dictionaries(self, file_path):
+        """
+        Saves internal dictionaries to pickle files for debugging purposes.
+
+        Parameters
+        ----------
+        file_path : str
+            The path to the source RDF file.
+        """
         dir_name = os.path.dirname(file_path)
         base_name = os.path.splitext(os.path.basename(file_path))[0]
         dict_path = os.path.join(dir_name, base_name)
@@ -531,6 +805,14 @@ class RDFProcessor:
             pickle.dump(self.nested_props, f)
 
 def parse_arguments():
+    """
+    Parses command-line arguments for the script.
+
+    Returns
+    -------
+    argparse.Namespace
+        The parsed command-line arguments.
+    """
     parser = argparse.ArgumentParser(description='Process RDF data based on user input')
     parser.add_argument('action', choices=['all', 'specific'],
                         help='Specify "all" to process all subdirectories, or "specific" for a specific source and target graphs.')
