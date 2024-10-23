@@ -455,7 +455,7 @@ def parse_arguments():
 if __name__ == "__main__":
     args = parse_arguments()
 
-    base_directory = "WDC_scripts\dataset_extraction_scripts\domain_specific\linking_dataset" # '/scratch/hpc-prf-dsg/WHALE-data/domain_specific/linking_dataset/'
+    base_directory = "/scratch/hpc-prf-lola/albert/WHALE/WDC_scripts/dataset_extraction_scripts/domain_specific/linking_dataset/" # '/scratch/hpc-prf-dsg/WHALE-data/domain_specific/linking_dataset/'
     
     # Check if base_directory exists, if not create it
     if not os.path.exists(base_directory):
