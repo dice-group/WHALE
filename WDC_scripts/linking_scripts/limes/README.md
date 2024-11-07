@@ -18,6 +18,12 @@ You can install the required libraries using `pip`:
 pip install rdflib tqdm SPARQLWrapper pandas
 ```
 
+You need to download the following files first:
+
+```
+wget https://files.dice-research.org/datasets/WHALE/WDC/linking_data/all_prefix.csv
+```
+
 ## Usage
 
 ```bash
