@@ -48,7 +48,7 @@ logging.info("Starting plot generation...")
 for subdir in tqdm(sampled_subdirs, desc="Generating plots"):
     epoch_loss_file = os.path.join(subdir, 'epoch_losses.csv')
     dataset_name = get_dataset_name(os.path.basename(subdir))
-    root_dir = Path(subdir).parents[2]  # Get root directory (e.g., adr, geo)
+    root_dir = Path(subdir).parents[1]  # Get root directory (e.g., adr, geo)
     plots_dir = os.path.join(root_dir, "plots")
     os.makedirs(plots_dir, exist_ok=True)  # Create plots directory if not exists
     
