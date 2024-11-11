@@ -10,7 +10,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Base directory containing subdirectories
-base_dir = "D:\DICE\Code\WHALE\WDC_scripts\embeddings"
+base_dir = "/scratch/hpc-prf-whale/WHALE-output/embeddings"
 
 # Subdirectories to explore
 root_dirs = ['adr', 'geo', 'hcalendar', 'hlisting', 'hrecipe', 'hresume', 'hreview', 'rdfa', 'species', 'xfn']
