@@ -41,6 +41,6 @@ def collect_predicates(input_file, output_file):
     print(f'Predicates are written on {output_file}.')
 
 if __name__ == "__main__":
-    input_file = "/scratch/hpc-prf-lola/albert/WHALE/WDC_scripts/linking_scripts/limes/datasets/bio2rdf/merged_goa_clean.nq"
-    output_file = "/scratch/hpc-prf-lola/albert/WHALE/WDC_scripts/linking_scripts/limes/datasets/bio2rdf/merged_goa_clean_predicates.txt"
+    input_file = "/scratch/hpc-prf-lola/albert/WHALE/WDC_scripts/linking_scripts/limes/datasets/bio2rdf/chebi/chebi.nt"
+    output_file = "/scratch/hpc-prf-lola/albert/WHALE/WDC_scripts/linking_scripts/limes/datasets/bio2rdf/chebi/chebi_predicates.txt"
     collect_predicates(input_file, output_file)
