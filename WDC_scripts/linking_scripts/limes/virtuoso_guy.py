@@ -4,15 +4,10 @@ import json
 sparql = SPARQLWrapper('http://localhost:8890/sparql')
 
 query = """
-select ?s ?p ?o
+select distinct ?class
 where {
     graph <http://bio2rdf.org/bioportal_resource:bio2rdf.dataset.bioportal.R3> {
-        ?s <http://www.w3.org/2002/07/owl#equivalentClass> ?o.
-        filter(
-            ?s != ?o && 
-            strstarts(str(?s), "http://bio2rdf.org/") && 
-            strstarts(str(?o), "http://bio2rdf.org/")
-        )
+        ?class rdf:type owl:Class .
     }
 }
 """

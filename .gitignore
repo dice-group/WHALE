@@ -58,6 +58,9 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+cache/
+WDC_scripts/linking_scripts/AML/AML_v3.2/data
+WDC_scripts/linking_scripts/AML/AML_v3.2/logs
 
 # Translations
 *.mo

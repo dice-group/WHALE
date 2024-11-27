@@ -1,0 +1,26 @@
+{
+	"mappingTime" : 969,
+	"inputSizes" : {
+		"source" : 11403,
+		"target" : 43541
+	},
+	"outputSizes" : {
+		"verification" : 1169,
+		"acceptance" : 329
+	},
+	"pseudoPRF" : {
+		"acceptance" : {
+			"precision" : 0.7629179331306991,
+			"recall" : 0.009136575422248107,
+			"f-measure" : 0.018056904427898274
+		},
+		"all" : {
+			"precision" : 0.5580774365821095,
+			"recall" : 0.030430984274898078,
+			"f-measure" : 0.057714877459440796
+		}
+	},
+	"lsVerbalization" : {
+		"English" : "The link will be generated if the label of the source and the target resources has a 60% of Jaccard similarity"
+	}
+}
