@@ -116,16 +116,11 @@ class RDFProcessor:
         # Check if the current working directory is already inside 'WDC_scripts/linking_scripts/limes'
         if class_mapping_path:
             class_mapping_file_absolute_path = os.path.abspath(class_mapping_path)
+            
+            # Load the class mapping file
+            self.load_classes(class_mapping_file_absolute_path)
         else:
-            if current_working_dir.endswith(os.path.join('WDC_scripts', 'linking_scripts', 'limes')):
-                class_mapping_file_relative_path = os.path.join('output_files', 'WDC_wikidata_verynear.nt')
-            else:
-                class_mapping_file_relative_path = os.path.join('WDC_scripts', 'linking_scripts', 'limes', 'output_files', 'WDC_wikidata_verynear.nt')
-            # Get the absolute paths
-            class_mapping_file_absolute_path = os.path.abspath(class_mapping_file_relative_path)
-
-        # Load the class mapping file
-        self.load_classes(class_mapping_file_absolute_path)
+            self.linked_classes = []
 
         if property_mapping_path:
             property_mapping_file_absolute_path = os.path.abspath(property_mapping_path)
@@ -133,8 +128,17 @@ class RDFProcessor:
             self.load_properties(property_mapping_file_absolute_path)
 
         # Namespace file path
+<<<<<<< HEAD
         namespace_file_relative_path = os.path.join('raw_data', 'all_prefix.csv')
         namespace_file_absolute_path = os.path.abspath(namespace_file_relative_path)
+=======
+        if current_working_dir.endswith(os.path.join('WDC_scripts', 'linking_scripts', 'limes')):
+            namespace_file_relative_path = os.path.join('raw_data', 'all_prefix.csv')
+        else:
+            namespace_file_relative_path = os.path.join('WDC_scripts', 'linking_scripts', 'limes', 'raw_data', 'all_prefix.csv')
+        namespace_file_absolute_path = os.path.abspath(namespace_file_relative_path) # TODO: Change to general paths
+        # namespace_file_absolute_path = '/home/sshivam/Work/Bio2RDF/raw_data/all_prefix.csv'
+>>>>>>> origin/pipeline
 
         if os.path.exists(namespace_file_absolute_path):
             self.namespace_to_prefix = self.load_namespaces(namespace_file_absolute_path)
@@ -160,11 +164,21 @@ class RDFProcessor:
             self.g_target = rdflib.ConjunctiveGraph()
             try:
                 logging.info(f"Loading target graph from {target_graph_path}...")
-                self.g_target.parse(target_graph_path, format='nquads')
+                if target_graph_path.endswith('.nq'):
+                    format = 'nquads'
+                elif target_graph_path.endswith('.nt'):
+                    format = 'nt'
+                else:
+                    # Optionally, you can handle other formats or raise an error
+                    logging.error("Unsupported file extension for target graph. Please provide a '.nt' or '.nq' file.")
+                    exit(1)
+                
+                self.g_target.parse(target_graph_path, format=format)
                 logging.info("Target graph loaded successfully.")
             except Exception as e:
                 logging.error(f"Failed to load target RDF file {target_graph_path}: {str(e)}")
                 exit(1)
+
         else:
             # Use Wikidata endpoint
             self.sparql = SPARQLWrapper("https://query.wikidata.org/sparql")
@@ -217,7 +231,7 @@ class RDFProcessor:
             with open(filename, 'r', encoding="utf-8") as file:
                 for line in file:
                     parts = line.strip().split()
-                    if len(parts) == 3:
+                    if len(parts) <= 4:
                         prop1 = parts[0].strip('<>')
                         prop2 = parts[2].strip('<>')
                         self.linked_properties.append((prop1, prop2))
@@ -342,7 +356,7 @@ class RDFProcessor:
         ----------
         directory : str
             The directory containing RDF files.
-        class_set : list of tuple
+        class_set : list of tuple, None
             A list of tuples containing source and target classes.
         """
         files = [f for f in os.listdir(directory) if f.endswith('.txt') or f.endswith('.nt')]
@@ -357,7 +371,7 @@ class RDFProcessor:
         ----------
         file_path : str
             The path to the RDF file.
-        class_set : list of tuple
+        class_set : list of tuple, None
             A list of tuples containing source and target classes.
         """
         g = rdflib.ConjunctiveGraph()
@@ -378,7 +392,7 @@ class RDFProcessor:
         self.prefixed_iri_dict = {}
 
         self.nested_props = {}
-
+        
         for idx, class_sets in enumerate(tqdm(class_set, desc="Processing classes")):
             source_class, target_class = class_sets
             # Check if property mapping is provided and relevant
@@ -693,21 +707,26 @@ class RDFProcessor:
         total_count = 0
         for result in total_results:
             total_count = int(result.orderCount)
+<<<<<<< HEAD
             logging.debug(f"Total instances for class {class_uri}: {total_count}")
+=======
+
+>>>>>>> origin/pipeline
         if total_count > 0:
+            # Existing behavior when instances of class_uri are found
             literal_query = f"""
             SELECT ?intermediateProperty ?finalProperty (COUNT(DISTINCT ?instance) AS ?literalCount)
             WHERE {{
-            ?instance a <{class_uri}> .
-            {{
-                ?instance ?finalProperty ?literalValue .
-                FILTER(isLiteral(?literalValue))
-            }}
-            UNION {{
-                ?instance ?intermediateProperty ?connectedResource .
-                ?connectedResource ?finalProperty ?literalValue .
-                FILTER(isLiteral(?literalValue))
-            }}
+                ?instance a <{class_uri}> .
+                {{
+                    ?instance ?finalProperty ?literalValue .
+                    FILTER(isLiteral(?literalValue))
+                }}
+                UNION {{
+                    ?instance ?intermediateProperty ?connectedResource .
+                    ?connectedResource ?finalProperty ?literalValue .
+                    FILTER(isLiteral(?literalValue))
+                }}
             }}
             GROUP BY ?finalProperty ?intermediateProperty
             """
@@ -723,7 +742,21 @@ class RDFProcessor:
                 properties_info[str(result.finalProperty)] = int(result.literalCount)
             return total_count, properties_info, nested_prop_dict
         else:
-            return 0, {}, {}
+            # No instances of class_uri found
+            # Consider all properties with literal values in the graph
+            properties_query = f"""
+            SELECT ?property (COUNT(DISTINCT ?property) AS ?propCount)
+            WHERE {{
+                ?i ?property <{class_uri}> .
+            }}
+            """
+            properties_info = {}
+            nested_prop_dict = {}  # No nested properties
+            results = graph.query(properties_query)
+            for result in results:
+                properties_info[str(result.property)] = int(result.propCount)
+            return total_count, properties_info, nested_prop_dict
+
         
     def query_target_graph(self, target_class):
         """

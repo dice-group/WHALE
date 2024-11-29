@@ -1,7 +1,16 @@
 import re
 
 def is_valid_uri(uri):
-    return re.match(r'^<([^:]+:[^\s"<>[\](){}]*)>$', uri)
+    if not re.match(r'^<([^:]+:[^\s"<>[\](){}]*)>$', uri):
+        return False
+
+    if uri.count('#') > 1:
+        return False
+
+    return True
+
+def is_roman_script(text):
+    return bool(re.match(r'^[\x00-\x7F]+$', text))
 
 def sanitize_literal(literal):
     return literal.replace('"', '').replace('\\', '')
@@ -18,6 +27,9 @@ def sanitize(input_file, output_file):
             label = ' '.join(parts[2:]).strip()
             label = label[:-2].strip()
 
+            # if not is_roman_script(label):
+            #     continue
+
             if not is_valid_uri(subject) or not is_valid_uri(predicate):
                 continue
 
@@ -29,7 +41,12 @@ def sanitize(input_file, output_file):
 
             outfile.write(f'{subject} {predicate} {label} .\n')
 
-sanitize(
-    '/scratch/hpc-prf-whale/bio2rdf/raw_data/sgd_sparql.nt',
-    '/scratch/hpc-prf-lola/albert/WHALE/WDC_scripts/linking_scripts/limes/datasets/sgd_sparql/sgd_sparql_clean.nt',
-)
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Sanitize an N-Triples file.")
+    parser.add_argument("input_file", help="Path to the input N-Triples file.")
+    parser.add_argument("output_file", help="Path to the sanitized N-Triples file.")
+    args = parser.parse_args()
+
+    sanitize(args.input_file, args.output_file)
