@@ -128,17 +128,12 @@ class RDFProcessor:
             self.load_properties(property_mapping_file_absolute_path)
 
         # Namespace file path
-<<<<<<< HEAD
-        namespace_file_relative_path = os.path.join('raw_data', 'all_prefix.csv')
-        namespace_file_absolute_path = os.path.abspath(namespace_file_relative_path)
-=======
         if current_working_dir.endswith(os.path.join('WDC_scripts', 'linking_scripts', 'limes')):
             namespace_file_relative_path = os.path.join('raw_data', 'all_prefix.csv')
         else:
             namespace_file_relative_path = os.path.join('WDC_scripts', 'linking_scripts', 'limes', 'raw_data', 'all_prefix.csv')
         namespace_file_absolute_path = os.path.abspath(namespace_file_relative_path) # TODO: Change to general paths
         # namespace_file_absolute_path = '/home/sshivam/Work/Bio2RDF/raw_data/all_prefix.csv'
->>>>>>> origin/pipeline
 
         if os.path.exists(namespace_file_absolute_path):
             self.namespace_to_prefix = self.load_namespaces(namespace_file_absolute_path)
@@ -707,11 +702,6 @@ class RDFProcessor:
         total_count = 0
         for result in total_results:
             total_count = int(result.orderCount)
-<<<<<<< HEAD
-            logging.debug(f"Total instances for class {class_uri}: {total_count}")
-=======
-
->>>>>>> origin/pipeline
         if total_count > 0:
             # Existing behavior when instances of class_uri are found
             literal_query = f"""

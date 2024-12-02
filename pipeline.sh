@@ -16,6 +16,8 @@
 
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
 CONFIG_DIR=$"$SCRIPT_DIR/LIMES/configs"
+LIMES_OUTPUT=$"$SCRIPT_DIR/LIMES/output/same_as_total.nt"
+AML_INPUT=$"$SCRIPT_DIR/AML_v3.2/data/input"
 
 # Function to display usage
 usage() {
@@ -73,13 +75,23 @@ for dataset_path in "${dataset_paths[@]}"; do
             echo "AML_v3.2 is already installed. Skipping download and extraction."
         fi
 
+        if [ ! -d "$AML_INPUT" ]; then
+            mkdir -p "$AML_INPUT"
+            echo "Directory created: $AML_INPUT"
+        else
+            echo "Directory already exists: $AML_INPUT"
+        fi
+
+        python $SCRIPT_DIR/WDC_scripts/linking_scripts/limes/extarct_classes_stream_easy.py \
+        /scratch/hpc-prf-whale/bio2rdf/raw_data/bioportal_GO_dataset_1_clean.nt $AML_INPUT/cls_1.nt $AML_INPUT/props_1.nt
+
         # - Run it to create class and property alignments using 
         # classes and properties from both datasets as an input
         python $SCRIPT_DIR/WDC_scripts/linking_scripts/limes/create_alignment.py \
-        -c1 /scratch/hpc-prf-whale/albert/WHALE/WDC_scripts/linking_scripts/AML/AML_v3.2/data/test/test_cls_1.nt \
-        -c2 /scratch/hpc-prf-whale/albert/WHALE/WDC_scripts/linking_scripts/AML/AML_v3.2/data/test/test_cls_2.nt \
-        -p1 /scratch/hpc-prf-whale/albert/WHALE/WDC_scripts/linking_scripts/AML/AML_v3.2/data/test/test_props_1.nt \
-        -p2 /scratch/hpc-prf-whale/albert/WHALE/WDC_scripts/linking_scripts/AML/AML_v3.2/data/test/test_props_2.nt
+        -c1 $AML_INPUT/cls_1.nt \
+        -c2 $AML_INPUT/cls_2.nt \
+        -p1 $AML_INPUT/props_1.nt \
+        -p2 $AML_INPUT/props_2.nt
 
         # Step 4: Create config files for Limes
         echo "Creating config files for Limes..."
@@ -124,6 +136,13 @@ for dataset_path in "${dataset_paths[@]}"; do
         # if [ $? -eq 0]; then
         #     echo "LIMES built successfully."
 
+        if [ ! -d "$CONFIG_DIR" ]; then
+            mkdir -p "$CONFIG_DIR"
+            echo "Directory created: $CONFIG_DIR"
+        else
+            echo "Directory already exists: $CONFIG_DIR"
+        fi
+
         for config_file in "$CONFIG_DIR"/*.xml; do
             if [ -f "$config_file" ]; then
                 echo "Running LIMES with config file: $config_file"
@@ -133,6 +152,13 @@ for dataset_path in "${dataset_paths[@]}"; do
                 break
             fi
         done
+
+        if [ -f $LIMES_OUTPUT ]; then
+            rm $LIMES_OUTPUT
+        fi
+        python $SCRIPT_DIR/WDC_scripts/linking_scripts/limes/merge_alignments_nt.py \
+        $SCRIPT_DIR/LIMES/output $SCRIPT_DIR/LIMES/output/same_as_total.nt
+
         # else
         #     echo "LIMES build failed."
         #     exit 1

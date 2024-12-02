@@ -1,41 +1,37 @@
 import sys
+import os
 
 def clean_relation(relation):
     return relation.replace("https://", "http://").rstrip('/')
 
-def merge_nt_files(file1, file2, output_file):
+def merge_nt_files(input_dir, output_dir):
     unique_triples = set()
 
-    with open(file1, 'r') as f1:
-        for line in f1:
-            line = line.strip()
-            if line:
-                parts = line.split(' ')
-                s, r, o = parts[0], parts[1], ' '.join(parts[2:-1])
-                cleaned_relation = clean_relation(r)
-                unique_triples.add((s, cleaned_relation, o))
-    
-    with open(file2, 'r') as f2:
-        for line in f2:
-            line = line.strip()
-            if line:
-                parts = line.split(' ')
-                s, r, o = parts[0], parts[1], ' '.join(parts[2:-1])
-                cleaned_relation = clean_relation(r)
-                unique_triples.add((s, cleaned_relation, o))
+    for filename in os.listdir(input_dir):
+        if '_near' in filename:
+            continue
+
+        file_path = os.path.join(input_dir, filename)
+        with open(file_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    parts = line.split(' ')
+                    s, r, o = parts[0], parts[1], ' '.join(parts[2:-1])
+                    cleaned_relation = clean_relation(r)
+                    unique_triples.add((s, cleaned_relation, o))
 
     with open(output_file, 'w') as f_out:
         for s, r, o in unique_triples:
             f_out.write(f'{s} {r} {o} .\n')
 
-if len(sys.argv) != 4:
-    print("Usage: python merge_alignments_nt.py <input_nt_file1> <input_nt_file2> <output_nt_file>")
+if len(sys.argv) != 3:
+    print("Usage: python merge_alignments_nt.py <input_directory> <output_nt_file>")
     sys.exit(1)
 
-file1 = sys.argv[1]
-file2 = sys.argv[2]
-output_file = sys.argv[3]
+input_dir = sys.argv[1]
+output_file = sys.argv[2]
 
-merge_nt_files(file1, file2, output_file)
+merge_nt_files(input_dir, output_file)
 
 print(f"Merged N-Triples file created at: {output_file}")
