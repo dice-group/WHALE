@@ -176,3 +176,4 @@ wikidata_classes_by_language.csv
 wikidata_classes.nt
 *.xml
 *.nt
+Test_dataset/
