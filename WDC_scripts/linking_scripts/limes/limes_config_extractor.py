@@ -167,7 +167,7 @@ class RDFProcessor:
                     format = 'turtle'
                 else:
                     # Optionally, you can handle other formats or raise an error
-                    logging.error("Unsupported file extension for target graph. Please provide a '.nt' or '.nq' file.")
+                    logging.error("Unsupported file extension for target graph. Please provide a '.nt', '.nq' or .ttl file.")
                     exit(1)
                 
                 self.g_target.parse(target_graph_path, format=format)
@@ -356,7 +356,7 @@ class RDFProcessor:
         class_set : list of tuple, None
             A list of tuples containing source and target classes.
         """
-        files = [f for f in os.listdir(directory) if f.endswith('.txt') or f.endswith('.nt')]
+        files = [f for f in os.listdir(directory) if f.endswith('.txt') or f.endswith('.nt') or f.endswith('.ttl')]
         for filename in tqdm(files, desc=f"Processing files in {directory}"):
             self.process_file(os.path.join(directory, filename), class_set)
 
@@ -943,10 +943,10 @@ if __name__ == "__main__":
             if args.path:
                 if os.path.isdir(args.path):
                     rdf_processor.process_directory(args.path, rdf_processor.linked_classes)
-                elif args.path.endswith('.txt') or args.path.endswith('.nt'):
+                elif args.path.endswith('.txt') or args.path.endswith('.nt') or args.path.endswith('.ttl'):
                     rdf_processor.process_file(args.path, rdf_processor.linked_classes)
                 else:
-                    logging.error("Specified path is not a directory or .txt/.nt file.")
+                    logging.error("Specified path is not a directory or .txt/.nt or .ttl file.")
                     exit(1)
             else:
                 logging.error("Source graph must be specified for the 'specific' action.")
