@@ -47,6 +47,7 @@ for dataset_path in "${dataset_paths[@]}"; do
     # Step 2: Generate embeddings with dice-embeddings
     echo "Installing dice-embeddings..."
     git clone https://github.com/dice-group/dice-embeddings.git # Comment it out if using on Noctua 2. Only to be used if running on local machine
+    git checkout whale-pipeline-evaluation
     pip3 install -e .["dev"] # Comment it out if using on Noctua 2. Only to be used if running on local machine
     echo "Generating embeddings for $dataset_path..."
     
