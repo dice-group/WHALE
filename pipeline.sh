@@ -185,8 +185,8 @@ python3 ./Alignment/procrustes/procrustes.py \
 
 # Step 7: Provide input to link prediction
 echo "Running Evaluation on Procrustes..."
-# TODO: SHIVAM
-    # - Add link prediction evaluation
+# Update the evaluation script based on the input from procrustes
+python3 evaluation.py
 
 
 echo "Pipeline execution complete."
