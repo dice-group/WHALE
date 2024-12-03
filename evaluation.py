@@ -5,7 +5,7 @@ from dicee.static_funcs import get_er_vocab, get_re_vocab
 from dicee.eval_static_funcs import evaluate_link_prediction_performance
 from rdflib import Graph
 
-data_path = "/home/sshivam/Work/dice-embeddings/KGs/commons_page_links_fr.ttl"
+data_path = "/scratch/hpc-prf-whale/DBpedia/raw_data/fr/commons_page_links_fr.ttl"
 
 args = Namespace()
 args.model = 'Keci'
