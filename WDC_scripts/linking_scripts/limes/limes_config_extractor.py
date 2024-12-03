@@ -163,6 +163,8 @@ class RDFProcessor:
                     format = 'nquads'
                 elif target_graph_path.endswith('.nt'):
                     format = 'nt'
+                elif target_graph_path.endswith('.ttl'):
+                    format = 'turtle'
                 else:
                     # Optionally, you can handle other formats or raise an error
                     logging.error("Unsupported file extension for target graph. Please provide a '.nt' or '.nq' file.")
@@ -372,11 +374,24 @@ class RDFProcessor:
         g = rdflib.ConjunctiveGraph()
         try:
             logging.info(f"Loading source graph {os.path.basename(file_path)}...")
-            g.parse(file_path, format='nquads')
+            # Determine the format based on the file extension
+            extension = file_path.lower()
+            if extension.endswith('.nq'):
+                format = 'nquads'
+            elif extension.endswith('.nt'):
+                format = 'nt'
+            elif extension.endswith('.ttl'):
+                format = 'turtle'
+            else:
+                logging.error("Unsupported file extension for source graph. Please provide a '.nt', '.nq', or '.ttl' file.")
+                return
+        
+            g.parse(file_path, format=format)
             logging.info(f"Loaded successfully: {file_path}")
         except Exception as e:
             logging.error(f"Failed to load RDF file {file_path}: {str(e)}")
             return
+
         
         self.class_properties_source = {}
         self.coverage_dict_source = {}
