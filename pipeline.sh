@@ -82,8 +82,11 @@ for dataset_path in "${dataset_paths[@]}"; do
             echo "Directory already exists: $AML_INPUT"
         fi
 
-        python $SCRIPT_DIR/WDC_scripts/linking_scripts/limes/extarct_classes_stream_easy.py \
-        /scratch/hpc-prf-whale/bio2rdf/raw_data/bioportal_GO_dataset_1_clean.nt $AML_INPUT/cls_1.nt $AML_INPUT/props_1.nt
+        python $SCRIPT_DIR/WDC_scripts/linking_scripts/limes/extractor_dbpedia.py \
+        /scratch/hpc-prf-whale/DBpedia/raw_data/es/persondata_es.ttl $AML_INPUT/cls_1.nt $AML_INPUT/props_1.nt
+
+        python $SCRIPT_DIR/WDC_scripts/linking_scripts/limes/extractor_dbpedia.py \
+        /scratch/hpc-prf-whale/DBpedia/raw_data/fr/persondata_fr.ttl $AML_INPUT/cls_2.nt $AML_INPUT/props_2.nt
 
         # - Run it to create class and property alignments using 
         # classes and properties from both datasets as an input
