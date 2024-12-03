@@ -186,3 +186,5 @@ wikidata_classes.nt
 WDC_scripts/linking_scripts/limes/datasets/
 Test_dataset/
 *.json
+checkpoints/
+Experiments/
