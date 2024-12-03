@@ -16,7 +16,7 @@
 
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
 CONFIG_DIR=$"$SCRIPT_DIR/LIMES/configs"
-LIMES_OUTPUT=$"$SCRIPT_DIR/LIMES/output/same_as_total.nt"
+LIMES_OUTPUT=$"$SCRIPT_DIR/Alignment/procrustes/limes/same_as_total.nt"
 AML_INPUT=$"$SCRIPT_DIR/AML_v3.2/data/input"
 
 # Function to display usage
@@ -59,7 +59,6 @@ done
 
 # Step 3: Create class and property alignment with AML tool
 echo "Running AML tool for class and property alignment..."
-# TODO: ALBERT
 # - Add downloading AML tool
 if [ ! -d "$SCRIPT_DIR/AML_v3.2" ]; then
     wget https://github.com/AgreementMakerLight/AML-Project/releases/download/v3.2/AML_v3.2.zip \
@@ -75,11 +74,12 @@ else
     echo "Directory already exists: $AML_INPUT"
 fi
 
+# TODO: extractor should be universal. That one is special for dbpedia for now
 python $SCRIPT_DIR/WDC_scripts/linking_scripts/limes/extractor_dbpedia.py \
-/scratch/hpc-prf-whale/DBpedia/raw_data/es/persondata_es.ttl $AML_INPUT/cls_1.nt $AML_INPUT/props_1.nt
+"${dataset_paths[0]}" $AML_INPUT/cls_1.nt $AML_INPUT/props_1.nt
 
 python $SCRIPT_DIR/WDC_scripts/linking_scripts/limes/extractor_dbpedia.py \
-/scratch/hpc-prf-whale/DBpedia/raw_data/fr/persondata_fr.ttl $AML_INPUT/cls_2.nt $AML_INPUT/props_2.nt
+"${dataset_paths[1]}" $AML_INPUT/cls_2.nt $AML_INPUT/props_2.nt
 
 # - Run it to create class and property alignments using 
 # classes and properties from both datasets as an input
@@ -96,7 +96,7 @@ echo "Creating config files for Limes..."
 
 # Step 5: Generate sameAs links using Limes
 echo "Running Limes to generate sameAs links..."
-# TODO: ALBERT
+# TODO: should be ucomment for local testing
 # - Add command to download limes 
 # if [ ! -d "$SCRIPT_DIR/LIMES" ]; then
 #     echo "Cloning LIMES repository..."
@@ -138,7 +138,7 @@ if [ ! -d "$CONFIG_DIR" ]; then
 else
     echo "Directory already exists: $CONFIG_DIR"
 fi
-
+# TODO: installed vrsion of limes should be used for local testing
 for config_file in "$CONFIG_DIR"/*.xml; do
     if [ -f "$config_file" ]; then
         echo "Running LIMES with config file: $config_file"
@@ -152,8 +152,16 @@ done
 if [ -f $LIMES_OUTPUT ]; then
     rm $LIMES_OUTPUT
 fi
+
+if [ ! -d "$LIMES_OUTPUT" ]; then
+    mkdir -p "$LIMES_OUTPUT"
+    echo "Directory created: $LIMES_OUTPUT"
+else
+    echo "Directory already exists: $LIMES_OUTPUT"
+fi
+# TODO: path provided from the step 4 should be used instead of ./limes/output
 python $SCRIPT_DIR/WDC_scripts/linking_scripts/limes/merge_alignments_nt.py \
-$SCRIPT_DIR/LIMES/output $SCRIPT_DIR/LIMES/output/same_as_total.nt
+$SCRIPT_DIR/LIMES/output $LIMES_OUTPUT/same_as_total.nt
 
 # else
 #     echo "LIMES build failed."
