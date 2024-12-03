@@ -934,10 +934,10 @@ if __name__ == "__main__":
         if args.source_graph:
             if os.path.isdir(args.source_graph):
                 rdf_processor.process_directory(args.source_graph, rdf_processor.linked_classes)
-            elif args.source_graph.endswith('.txt') or args.source_graph.endswith('.nt'):
+            elif args.source_graph.endswith('.txt') or args.source_graph.endswith('.nt') or args.source_graph.endswith('.ttl'):
                 rdf_processor.process_file(args.source_graph, rdf_processor.linked_classes)
             else:
-                logging.error("Specified source_graph is not a directory or .txt/.nt file.")
+                logging.error("Specified source_graph is not a directory or .txt/.nt or .ttl file.")
                 exit(1)
         else:
             if args.path:
