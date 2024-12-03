@@ -1,4 +1,5 @@
 import rdflib
+from rdflib.namespace import split_uri
 import os
 import logging
 import pickle
@@ -12,6 +13,7 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 import xml.dom.minidom as minidom
 
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s',)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s',)
 
 class RDFProcessor:
@@ -108,6 +110,7 @@ class RDFProcessor:
         self.base_directory = base_directory
         self.linked_classes = []
         self.linked_properties = []
+        self.total_count_target = 0
         current_working_dir = os.getcwd()
 
         # Check if the current working directory is already inside 'WDC_scripts/linking_scripts/limes'
@@ -132,8 +135,20 @@ class RDFProcessor:
         namespace_file_absolute_path = os.path.abspath(namespace_file_relative_path) # TODO: Change to general paths
         # namespace_file_absolute_path = '/home/sshivam/Work/Bio2RDF/raw_data/all_prefix.csv'
 
+        if os.path.exists(namespace_file_absolute_path):
+            self.namespace_to_prefix = self.load_namespaces(namespace_file_absolute_path)
+        else:
+            logging.warning(f"Namespace file not found: {namespace_file_absolute_path}. Skipping prefix loading.")
+            self.namespace_to_prefix = {}
+
+        # if current_working_dir.endswith(os.path.join('WDC_scripts', 'linking_scripts', 'limes')):
+        #     namespace_file_relative_path = os.path.join('raw_data', 'all_prefix.csv')
+        # else:
+        #     namespace_file_relative_path = os.path.join('WDC_scripts', 'linking_scripts', 'limes', 'raw_data', 'all_prefix.csv')
+        # namespace_file_absolute_path = os.path.abspath(namespace_file_relative_path)
+
         # Load namespaces
-        self.namespace_to_prefix = self.load_namespaces(namespace_file_absolute_path)
+        # self.namespace_to_prefix = self.load_namespaces(namespace_file_absolute_path)
 
         self.output_dir_path = output_path
         self.config_dir_path = config_output_path
@@ -148,6 +163,8 @@ class RDFProcessor:
                     format = 'nquads'
                 elif target_graph_path.endswith('.nt'):
                     format = 'nt'
+                elif target_graph_path.endswith('.ttl'):
+                    format = 'turtle'
                 else:
                     # Optionally, you can handle other formats or raise an error
                     logging.error("Unsupported file extension for target graph. Please provide a '.nt' or '.nq' file.")
@@ -239,6 +256,18 @@ class RDFProcessor:
         logging.info("Namespaces loaded successfully!")
         return dict(zip(df['namespace'], df['prefix']))
         
+    def extract_namespaces(self, iri):
+        try:
+            namespace, local_name = split_uri(iri)
+        except ValueError:
+            logging.warning(f"Could not split IRI: {iri}")
+            namespace = iri
+            local_name = ''
+        if namespace not in self.namespace_to_prefix:
+            prefix = f'ns{len(self.namespace_to_prefix)}'
+            self.namespace_to_prefix[namespace] = prefix
+        return self.namespace_to_prefix[namespace]
+
     def replace_with_prefix(self, iri):
         """
         Replaces a full IRI with its prefixed version using the loaded namespaces.
@@ -258,12 +287,24 @@ class RDFProcessor:
         AssertionError
             If the IRI does not start with any known namespace and contains a '/' character.
         """
-        for namespace, prefix in self.namespace_to_prefix.items():
-            if iri.startswith(namespace):
-                self.prefix_namespace_dict[namespace] = prefix
-                return iri.replace(namespace, prefix + ':')
-        assert "/" not in iri
-        return iri
+        # for namespace, prefix in self.namespace_to_prefix.items():
+        #     if iri.startswith(namespace):
+        #         self.prefix_namespace_dict[namespace] = prefix
+        #         return iri.replace(namespace, prefix + ':')
+        # if "/" in iri:
+        #     logging.warning(f"IRI doesn't match any known namespace and contains '/': {iri}")
+        # else:
+        #     logging.warning(f"IRI doesn't match any known namespace: {iri}")
+        
+        # return iri
+
+        prefix = self.extract_namespaces(iri)
+        try:
+            _, local_name = split_uri(iri)
+        except ValueError:
+            logging.warning(f"Could not split IRI: {iri}")
+            local_name = ''
+        return f'{prefix}:{local_name}'
 
     def execute_safe_query(self):
         """
@@ -333,11 +374,24 @@ class RDFProcessor:
         g = rdflib.ConjunctiveGraph()
         try:
             logging.info(f"Loading source graph {os.path.basename(file_path)}...")
-            g.parse(file_path, format='nquads')
+            # Determine the format based on the file extension
+            extension = file_path.lower()
+            if extension.endswith('.nq'):
+                format = 'nquads'
+            elif extension.endswith('.nt'):
+                format = 'nt'
+            elif extension.endswith('.ttl'):
+                format = 'turtle'
+            else:
+                logging.error("Unsupported file extension for source graph. Please provide a '.nt', '.nq', or '.ttl' file.")
+                return
+        
+            g.parse(file_path, format=format)
             logging.info(f"Loaded successfully: {file_path}")
         except Exception as e:
             logging.error(f"Failed to load RDF file {file_path}: {str(e)}")
             return
+
         
         self.class_properties_source = {}
         self.coverage_dict_source = {}
@@ -345,7 +399,6 @@ class RDFProcessor:
         self.class_properties_target = {}
         self.coverage_dict_target = {}
 
-        self.prefix_namespace_dict = {}
         self.prefixed_iri_dict = {}
 
         self.nested_props = {}
@@ -487,7 +540,7 @@ class RDFProcessor:
         label_elem.text = 'owl'
 
         # Add PREFIX section
-        for namespace, prefix in self.prefix_namespace_dict.items():
+        for namespace, prefix in self.namespace_to_prefix.items():
             prefix_elem = ET.SubElement(limes, 'PREFIX')
             namespace_elem = ET.SubElement(prefix_elem, 'NAMESPACE')
             namespace_elem.text = namespace
@@ -664,7 +717,6 @@ class RDFProcessor:
         total_count = 0
         for result in total_results:
             total_count = int(result.orderCount)
-
         if total_count > 0:
             # Existing behavior when instances of class_uri are found
             literal_query = f"""
@@ -745,6 +797,7 @@ class RDFProcessor:
             self.sparql.setReturnFormat(JSON)
             results = self.execute_safe_query()
             total_count = int(results["results"]["bindings"][0]["orderCount"]["value"]) if results["results"]["bindings"] else 0
+            logging.debug(f"Total instances for target class {target_class}: {total_count}")
 
             literal_query_target = f"""
                     SELECT ?property (COUNT(DISTINCT ?instance) AS ?literalCount)
@@ -819,7 +872,7 @@ class RDFProcessor:
             pickle.dump(self.coverage_dict_target, f)
 
         with open(os.path.join(dict_path, 'prefix_namespace_dict.pkl'), 'wb') as f:
-            pickle.dump(self.prefix_namespace_dict, f)
+            pickle.dump(self.namespace_to_prefix, f)
         with open(os.path.join(dict_path, 'prefixed_iri_dict.pkl'), 'wb') as f:
             pickle.dump(self.prefixed_iri_dict, f)
 
@@ -860,8 +913,8 @@ def parse_arguments():
 if __name__ == "__main__":
     args = parse_arguments()
 
-    base_directory = "WDC_scripts\dataset_extraction_scripts\domain_specific\linking_dataset"
-
+    base_directory = "/scratch/hpc-prf-lola/albert/WHALE/WDC_scripts/dataset_extraction_scripts/domain_specific/linking_dataset/" # '/scratch/hpc-prf-dsg/WHALE-data/domain_specific/linking_dataset/'
+    
     # Check if base_directory exists, if not create it
     if not os.path.exists(base_directory):
         os.makedirs(base_directory)
