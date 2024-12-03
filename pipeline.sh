@@ -46,8 +46,8 @@ for dataset_path in "${dataset_paths[@]}"; do
 
     # Step 2: Generate embeddings with dice-embeddings
     echo "Installing dice-embeddings..."
-    git clone https://github.com/dice-group/dice-embeddings.git
-    pip3 install -e .["dev"]
+    git clone https://github.com/dice-group/dice-embeddings.git # Comment it out if using on Noctua 2. Only to be used if running on local machine
+    pip3 install -e .["dev"] # Comment it out if using on Noctua 2. Only to be used if running on local machine
     echo "Generating embeddings for $dataset_path..."
     
     # TODO: SHIVAM
@@ -169,9 +169,19 @@ for dataset_path in "${dataset_paths[@]}"; do
 
         # Step 6: Run Procrustes algorithm
         echo "Running Procrustes algorithm..."
-        # TODO: DUYGU
-        # - Add command to run procrastes algorithm
-        # - Generate the model.pt from dicee KGE class
+        # Define paths for the process
+        embedding_folder="./Alignment/procrustes/embeddings_folder"
+        alignment_dict_path="./Alignment/procrustes/pre_aligned"
+        alignmentlimes_dict_path="./Alignment/procrustes/limes"
+        output_folder="./Alignment/procrustes/output"
+
+        # Run the Python script using relative paths and initialize the model
+        python3 ./Alignment/procrustes/procrustes.py \
+            --embedding_folder "$embedding_folder" \
+            --alignment_dict_path "$alignment_dict_path" \
+            --alignmentlimes_dict_path "$alignmentlimes_dict_path" \
+            --output_folder "$output_folder"
+
 
         # Step 7: Provide input to query generator
         echo "Running query generator..."

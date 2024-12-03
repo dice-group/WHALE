@@ -184,3 +184,4 @@ wikidata_classes.nt
 !WDC_scripts/linking_scripts/limes/extract_configs_with_props_use_limes.sh
 
 WDC_scripts/linking_scripts/limes/datasets/
+Test_dataset/
