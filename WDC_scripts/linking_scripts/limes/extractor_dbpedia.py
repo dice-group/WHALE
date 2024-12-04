@@ -3,7 +3,8 @@ from rdflib import Graph, URIRef
 from rdflib.namespace import RDF, OWL
 from rdflib.util import guess_format
 
-def process_rdf(input_file, output_file_classes, output_file_properties):
+def process_rdf(input_file, output_file_classes, output_file_properties, search_predicate):
+    print('Extracting classes and properties from provided datasets...')
     rdf_format = guess_format(input_file)
     if rdf_format is None:
         raise ValueError(f'Could not determine the RDF format for the input file: {input_file}')
@@ -19,7 +20,7 @@ def process_rdf(input_file, output_file_classes, output_file_properties):
         pred_local = get_local_name(pred)
         properties_dict[pred] = pred_local
 
-        if pred == RDF.type and isinstance(obj, URIRef):
+        if pred == URIRef(search_predicate) and isinstance(obj, URIRef):
             class_local = get_local_name(obj)
             classes_dict[obj] = class_local
 
@@ -44,16 +45,17 @@ def get_local_name(uri):
         return uri_str.rstrip('/').split('/')[-1]
 
 def main():
-    if len(sys.argv) != 4:
-        print("Usage: python script.py <input_file> <output_file_classes> <output_file_properties>")
+    if len(sys.argv) < 4 or len(sys.argv) > 5:
+        print("Usage: python script.py <input_file> <output_file_classes> <output_file_properties> [search_classes_predicate]")
         sys.exit(1)
 
     input_file = sys.argv[1]
     output_file_classes = sys.argv[2]
     output_file_properties = sys.argv[3]
+    search_predicate = sys.argv[4] if len(sys.argv) == 5 else "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
 
     try:
-        process_rdf(input_file, output_file_classes, output_file_properties)
+        process_rdf(input_file, output_file_classes, output_file_properties, search_predicate)
     except Exception as e:
         print(f"Error: {e}")
         sys.exit(1)

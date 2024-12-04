@@ -7,6 +7,10 @@ def clean_relation(relation):
 def merge_nt_files(input_dir, output_dir):
     unique_triples = set()
 
+    if not os.listdir(input_dir):
+        print("No files found in the directory.")
+        return 
+
     for filename in os.listdir(input_dir):
         if '_near' in filename:
             continue
@@ -21,9 +25,13 @@ def merge_nt_files(input_dir, output_dir):
                     cleaned_relation = clean_relation(r)
                     unique_triples.add((s, cleaned_relation, o))
 
-    with open(output_file, 'w') as f_out:
-        for s, r, o in unique_triples:
-            f_out.write(f'{s} {r} {o} .\n')
+    if unique_triples:
+        with open(output_file, 'w') as f_out:
+            for s, r, o in unique_triples:
+                f_out.write(f'{s} {r} {o} .\n')
+        print(f'Merged N_Triples file created at: {output_file}')
+    else:
+        print('No triples found in the files.')
 
 if len(sys.argv) != 3:
     print("Usage: python merge_alignments_nt.py <input_directory> <output_nt_file>")

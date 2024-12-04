@@ -16,7 +16,7 @@
 
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
 CONFIG_DIR=$"$SCRIPT_DIR/LIMES/configs"
-LIMES_OUTPUT=$"$SCRIPT_DIR/Alignment/procrustes/limes/same_as_total.nt"
+LIMES_OUTPUT=$"$SCRIPT_DIR/Alignment/procrustes/limes"
 AML_INPUT=$"$SCRIPT_DIR/AML_v3.2/data/input"
 
 # Function to display usage
@@ -93,6 +93,10 @@ python $SCRIPT_DIR/WDC_scripts/linking_scripts/limes/create_alignment.py \
 echo "Creating config files for Limes..."
 # TODO: SHIVAM 
 # - Add command to run /WHALE/WDC_scripts/linking_scripts/limes/limes_config_extractor.py
+python /scratch/hpc-prf-whale/albert/WHALE/WDC_scripts/linking_scripts/limes/limes_config_extractor.py specific \
+-cm $AML_INPUT/../class_output.nt \
+-c $CONFIG_DIR -o $LIMES_OUTPUT \
+--target_graph "${dataset_paths[0]}" --source_graph  "${dataset_paths[0]}"
 
 # Step 5: Generate sameAs links using Limes
 echo "Running Limes to generate sameAs links..."
@@ -149,8 +153,8 @@ for config_file in "$CONFIG_DIR"/*.xml; do
     fi
 done
 
-if [ -f $LIMES_OUTPUT ]; then
-    rm $LIMES_OUTPUT
+if [ -f $LIMES_OUTPUT/same_as_total.nt ]; then
+    rm $LIMES_OUTPUT/same_as_total.nt
 fi
 
 if [ ! -d "$LIMES_OUTPUT" ]; then
@@ -159,9 +163,10 @@ if [ ! -d "$LIMES_OUTPUT" ]; then
 else
     echo "Directory already exists: $LIMES_OUTPUT"
 fi
+
 # TODO: path provided from the step 4 should be used instead of ./limes/output
 python $SCRIPT_DIR/WDC_scripts/linking_scripts/limes/merge_alignments_nt.py \
-$SCRIPT_DIR/LIMES/output $LIMES_OUTPUT/same_as_total.nt
+$LIMES_OUTPUT $LIMES_OUTPUT/same_as_total.nt
 
 # else
 #     echo "LIMES build failed."
