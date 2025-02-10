@@ -179,6 +179,7 @@ wikidata_classes_by_language.csv
 wikidata_classes.nt
 *.xml
 *.nt
+*.rdf
 *.nq
 *.sh
 !WDC_scripts/linking_scripts/limes/extract_configs_with_props_use_limes.sh

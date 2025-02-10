@@ -158,13 +158,6 @@ if [ -f $LIMES_OUTPUT/same_as_total.nt ]; then
     rm $LIMES_OUTPUT/same_as_total.nt
 fi
 
-if [ ! -d "$LIMES_OUTPUT" ]; then
-    mkdir -p "$LIMES_OUTPUT"
-    echo "Directory created: $LIMES_OUTPUT"
-else
-    echo "Directory already exists: $LIMES_OUTPUT"
-fi
-
 # TODO: path provided from the step 4 should be used instead of ./limes/output
 python $SCRIPT_DIR/WDC_scripts/linking_scripts/limes/merge_alignments_nt.py \
 $LIMES_OUTPUT $LIMES_OUTPUT/same_as_total.nt

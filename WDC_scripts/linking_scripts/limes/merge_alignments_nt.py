@@ -41,5 +41,3 @@ input_dir = sys.argv[1]
 output_file = sys.argv[2]
 
 merge_nt_files(input_dir, output_file)
-
-print(f"Merged N-Triples file created at: {output_file}")
