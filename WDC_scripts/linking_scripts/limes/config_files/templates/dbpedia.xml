@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE LIMES SYSTEM "limes.dtd">
+<LIMES>
+  <PREFIX>
+    <NAMESPACE>http://www.w3.org/1999/02/22-rdf-syntax-ns#</NAMESPACE>
+    <LABEL>rdf</LABEL>
+  </PREFIX>
+  <PREFIX>
+    <NAMESPACE>http://www.w3.org/2000/01/rdf-schema#</NAMESPACE>
+    <LABEL>rdfs</LABEL>
+  </PREFIX>
+  <PREFIX>
+    <NAMESPACE>http://www.w3.org/2002/07/owl#</NAMESPACE>
+    <LABEL>owl</LABEL>
+  </PREFIX>
+  <PREFIX>
+    <NAMESPACE>http://dbpedia.org/ontology/</NAMESPACE>
+    <LABEL>dbo</LABEL>
+  </PREFIX>
+  <PREFIX>
+    <NAMESPACE>http://dbpedia.org/property/</NAMESPACE>
+    <LABEL>dbp</LABEL>
+  </PREFIX>
+  
+  <SOURCE>
+    <ID>source</ID>
+    <ENDPOINT>http://n2cn1007:3030/dbpedia_en</ENDPOINT>
+    <VAR>?s</VAR>
+    <PAGESIZE>-1</PAGESIZE>
+    <RESTRICTION>?s a dbo:{class_name}</RESTRICTION>
+    <PROPERTY>rdfs:label AS nolang->lowercase</PROPERTY>
+    <OPTIONAL_PROPERTY>dbp:name AS nolang->lowercase</OPTIONAL_PROPERTY>
+    <OPTIONAL_PROPERTY>dbp:date AS nolang->lowercase</OPTIONAL_PROPERTY>
+    <OPTIONAL_PROPERTY>dbp:year AS nolang->lowercase</OPTIONAL_PROPERTY>
+    <OPTIONAL_PROPERTY>dbp:title AS nolang->lowercase</OPTIONAL_PROPERTY>
+  </SOURCE>
+  
+  <TARGET>
+    <ID>target</ID>
+    <ENDPOINT>http://n2cn1007:3030/dbpedia_fr</ENDPOINT>
+    <VAR>?t</VAR>
+    <PAGESIZE>-1</PAGESIZE>
+    <RESTRICTION>?t a dbo:{class_name}</RESTRICTION>
+    <PROPERTY>rdfs:label AS nolang->lowercase</PROPERTY>
+    <OPTIONAL_PROPERTY>dbp:name AS nolang->lowercase</OPTIONAL_PROPERTY>
+    <OPTIONAL_PROPERTY>dbp:date AS nolang->lowercase</OPTIONAL_PROPERTY>
+    <OPTIONAL_PROPERTY>dbp:year AS nolang->lowercase</OPTIONAL_PROPERTY>
+    <OPTIONAL_PROPERTY>dbp:title AS nolang->lowercase</OPTIONAL_PROPERTY>
+  </TARGET>
+
+  <MLALGORITHM>
+    <NAME>wombat simple</NAME>
+    <TYPE>unsupervised</TYPE>
+    <PARAMETER>
+        <NAME>atomic measures</NAME>
+        <VALUE>jaccard, trigrams, cosine</VALUE>
+    </PARAMETER>
+  </MLALGORITHM>
+  
+  <ACCEPTANCE>
+    <THRESHOLD>0.7</THRESHOLD>
+    <FILE>/scratch/hpc-prf-whale/albert/WHALE/LIMES/output/dbpedia_props_fr/{class_name}_same_as.nt</FILE>
+    <RELATION>owl:sameAs</RELATION>
+  </ACCEPTANCE>
+  
+  <REVIEW>
+    <THRESHOLD>0.0</THRESHOLD>
+    <FILE>/scratch/hpc-prf-whale/albert/WHALE/LIMES/output/dbpedia_props_fr/{class_name}_near.nt</FILE>
+    <RELATION>owl:near</RELATION>
+  </REVIEW>
+  
+  <EXECUTION>
+    <REWRITER>default</REWRITER>
+    <PLANNER>default</PLANNER>
+    <ENGINE>default</ENGINE>
+  </EXECUTION>
+  
+  <OUTPUT>CSV</OUTPUT>
+</LIMES>

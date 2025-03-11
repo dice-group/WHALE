@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE LIMES SYSTEM "limes.dtd">
+<LIMES>
+  <PREFIX>
+    <NAMESPACE>http://www.w3.org/2000/01/rdf-schema#</NAMESPACE>
+    <LABEL>rdfs</LABEL>
+  </PREFIX>
+  <PREFIX>
+    <NAMESPACE>http://www.w3.org/2002/07/owl#</NAMESPACE>
+    <LABEL>owl</LABEL>
+  </PREFIX>
+  <PREFIX>
+    <NAMESPACE>http://www.w3.org/2004/02/skos/core#</NAMESPACE>
+    <LABEL>skos</LABEL>
+  </PREFIX>
+  <PREFIX>
+    <NAMESPACE>http://dbkwik.webdatacommons.org/swg.wikia.com/class/</NAMESPACE>
+    <LABEL>dbk</LABEL>
+  </PREFIX>
+  <PREFIX>
+    <NAMESPACE>http://dbkwik.webdatacommons.org/ontology/</NAMESPACE>
+    <LABEL>dbo</LABEL>
+  </PREFIX>
+  <PREFIX>
+    <NAMESPACE>http://dbkwik.webdatacommons.org/swtor.wikia.com/class/</NAMESPACE>
+    <LABEL>swt</LABEL>
+  </PREFIX>
+  
+  <SOURCE>
+    <ID>source</ID>
+    <ENDPOINT>http://localhost:3030/galaxies</ENDPOINT>
+    <VAR>?s</VAR>
+    <PAGESIZE>-1</PAGESIZE>
+    <RESTRICTION>?s a dbk:{s_cls}</RESTRICTION>
+    <PROPERTY>dbo:wikiPageWikiLinkText AS nolang->lowercase</PROPERTY>
+    <OPTIONAL_PROPERTY>rdfs:label AS nolang->lowercase</OPTIONAL_PROPERTY>
+    <OPTIONAL_PROPERTY>skos:altLabel AS nolang->lowercase</OPTIONAL_PROPERTY>
+    <OPTIONAL_PROPERTY>dbo:abstract AS nolang->lowercase</OPTIONAL_PROPERTY>
+    <OPTIONAL_PROPERTY>rdfs:comment AS nolang->lowercase</OPTIONAL_PROPERTY>
+  </SOURCE>
+  
+  <TARGET>
+    <ID>target</ID>
+    <ENDPOINT>http://localhost:3030/the-old-republic-wiki</ENDPOINT>
+    <VAR>?t</VAR>
+    <PAGESIZE>-1</PAGESIZE>
+    <RESTRICTION>?t a swt:{t_cls}</RESTRICTION>
+    <PROPERTY>dbo:wikiPageWikiLinkText AS nolang->lowercase</PROPERTY>
+    <OPTIONAL_PROPERTY>rdfs:label AS nolang->lowercase</OPTIONAL_PROPERTY>
+    <OPTIONAL_PROPERTY>skos:altLabel AS nolang->lowercase</OPTIONAL_PROPERTY>
+    <OPTIONAL_PROPERTY>dbo:abstract AS nolang->lowercase</OPTIONAL_PROPERTY>
+    <OPTIONAL_PROPERTY>rdfs:comment AS nolang->lowercase</OPTIONAL_PROPERTY>
+  </TARGET>
+
+  <MLALGORITHM>
+    <NAME>wombat simple</NAME>
+    <TYPE>unsupervised</TYPE>
+    <PARAMETER>
+        <NAME>atomic measures</NAME>
+        <VALUE>jaccard, trigrams, cosine</VALUE>
+    </PARAMETER>
+  </MLALGORITHM>
+  
+  <ACCEPTANCE>
+    <THRESHOLD>0.7</THRESHOLD>
+    <FILE>/scratch/hpc-prf-whale/albert/WHALE/LIMES/output/starwars/{s_cls}_{t_cls}_same_as.nt</FILE>
+    <RELATION>owl:sameAs</RELATION>
+  </ACCEPTANCE>
+  
+  <REVIEW>
+    <THRESHOLD>0.0</THRESHOLD>
+    <FILE>/scratch/hpc-prf-whale/albert/WHALE/LIMES/output/starwars/{s_cls}_{t_cls}_near.nt</FILE>
+    <RELATION>owl:near</RELATION>
+  </REVIEW>
+  
+  <EXECUTION>
+    <REWRITER>default</REWRITER>
+    <PLANNER>default</PLANNER>
+    <ENGINE>default</ENGINE>
+  </EXECUTION>
+  
+  <OUTPUT>CSV</OUTPUT>
+</LIMES>
