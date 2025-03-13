@@ -178,6 +178,7 @@ knowledge_graph.nt
 wikidata_classes_by_language.csv
 wikidata_classes.nt
 *.xml
+!WDC_scripts/linking_scripts/limes/linking/data/templates/*.xml
 *.nt
 *.rdf
 *.nq
