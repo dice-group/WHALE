@@ -2,16 +2,8 @@
 <!DOCTYPE LIMES SYSTEM "limes.dtd">
 <LIMES>
   <PREFIX>
-    <NAMESPACE>http://www.w3.org/2000/01/rdf-schema#</NAMESPACE>
-    <LABEL>rdfs</LABEL>
-  </PREFIX>
-  <PREFIX>
     <NAMESPACE>http://www.w3.org/2002/07/owl#</NAMESPACE>
     <LABEL>owl</LABEL>
-  </PREFIX>
-  <PREFIX>
-    <NAMESPACE>http://www.w3.org/2004/02/skos/core#</NAMESPACE>
-    <LABEL>skos</LABEL>
   </PREFIX>{prefixes}
   
   <SOURCE>
@@ -19,12 +11,7 @@
     <ENDPOINT>{s_endpoint}</ENDPOINT>
     <VAR>?s</VAR>
     <PAGESIZE>-1</PAGESIZE>
-    <RESTRICTION>?s a {s_prefix}:{s_cls}</RESTRICTION>
-    <PROPERTY>dbo:wikiPageWikiLinkText AS nolang->lowercase</PROPERTY>
-    <OPTIONAL_PROPERTY>rdfs:label AS nolang->lowercase</OPTIONAL_PROPERTY>
-    <OPTIONAL_PROPERTY>skos:altLabel AS nolang->lowercase</OPTIONAL_PROPERTY>
-    <OPTIONAL_PROPERTY>dbo:abstract AS nolang->lowercase</OPTIONAL_PROPERTY>
-    <OPTIONAL_PROPERTY>rdfs:comment AS nolang->lowercase</OPTIONAL_PROPERTY>
+    <RESTRICTION>?s a {s_prefix}:{s_cls}</RESTRICTION>{source_properties}
   </SOURCE>
   
   <TARGET>
@@ -32,12 +19,7 @@
     <ENDPOINT>{t_endpoint}</ENDPOINT>
     <VAR>?t</VAR>
     <PAGESIZE>-1</PAGESIZE>
-    <RESTRICTION>?t a {t_prefix}:{t_cls}</RESTRICTION>s
-    <PROPERTY>dbo:wikiPageWikiLinkText AS nolang->lowercase</PROPERTY>
-    <OPTIONAL_PROPERTY>rdfs:label AS nolang->lowercase</OPTIONAL_PROPERTY>
-    <OPTIONAL_PROPERTY>skos:altLabel AS nolang->lowercase</OPTIONAL_PROPERTY>
-    <OPTIONAL_PROPERTY>dbo:abstract AS nolang->lowercase</OPTIONAL_PROPERTY>
-    <OPTIONAL_PROPERTY>rdfs:comment AS nolang->lowercase</OPTIONAL_PROPERTY>
+    <RESTRICTION>?t a {t_prefix}:{t_cls}</RESTRICTION>{target_properties}
   </TARGET>
 
   <MLALGORITHM>
