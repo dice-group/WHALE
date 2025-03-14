@@ -1,0 +1,13 @@
+endpoints:
+  s_endpoint: 'http://localhost:3030/galaxies'
+  t_endpoint: 'http://localhost:3030/the-old-republic-wiki'
+
+file_paths:
+  template_file: '../data/templates/linking_config.xml'
+  config_output_dir: '/scratch/hpc-prf-whale/albert/WHALE/LIMES/configs/test'
+  linking_output_dir: '/scratch/hpc-prf-whale/albert/WHALE/LIMES/output/test'
+  list_classes: '/scratch/hpc-prf-whale/albert/WHALE/LIMES/output/starwars/class_alignment/same_as_total.nt'
+  query_path: '../data/queries/query_props_coverage_all.rq'
+
+logging:
+  level: "INFO"
