@@ -2,18 +2,21 @@
 <!DOCTYPE LIMES SYSTEM "limes.dtd">
 <LIMES>
   <PREFIX>
+    <NAMESPACE>http://www.w3.org/2000/01/rdf-schema#</NAMESPACE>
+    <LABEL>rdfs</LABEL>
+  </PREFIX>
+  <PREFIX>
     <NAMESPACE>http://www.w3.org/2002/07/owl#</NAMESPACE>
     <LABEL>owl</LABEL>
   </PREFIX>
-  {prefixes}
   
   <SOURCE>
     <ID>source</ID>
     <ENDPOINT>{s_endpoint}</ENDPOINT>
     <VAR>?s</VAR>
     <PAGESIZE>-1</PAGESIZE>
-    <RESTRICTION>?s a {s_prefix}:{s_cls}</RESTRICTION>
-    {source_properties}
+    <RESTRICTION>?s a owl:Class</RESTRICTION>
+    <PROPERTY>rdfs:label AS nolang->lowercase</PROPERTY>
   </SOURCE>
   
   <TARGET>
@@ -21,8 +24,8 @@
     <ENDPOINT>{t_endpoint}</ENDPOINT>
     <VAR>?t</VAR>
     <PAGESIZE>-1</PAGESIZE>
-    <RESTRICTION>?t a {t_prefix}:{t_cls}</RESTRICTION>
-    {target_properties}
+    <RESTRICTION>?t a owl:Class</RESTRICTION>
+    <PROPERTY>rdfs:label AS nolang->lowercase</PROPERTY>
   </TARGET>
 
   <MLALGORITHM>
@@ -36,13 +39,13 @@
   
   <ACCEPTANCE>
     <THRESHOLD>0.7</THRESHOLD>
-    <FILE>{linking_output_dir}/{s_cls}_{t_cls}_same_as.nt</FILE>
+    <FILE>{class_alignment}</FILE>
     <RELATION>owl:sameAs</RELATION>
   </ACCEPTANCE>
-  
+
   <REVIEW>
     <THRESHOLD>0.0</THRESHOLD>
-    <FILE>{linking_output_dir}/{s_cls}_{t_cls}_near.nt</FILE>
+    <FILE>{class_alignment}_near.nt</FILE>
     <RELATION>owl:near</RELATION>
   </REVIEW>
   

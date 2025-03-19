@@ -1,0 +1,15 @@
+endpoints:
+  s_endpoint: 'http://localhost:3030/galaxies'
+  t_endpoint: 'http://localhost:3030/starwars'
+
+file_paths:
+  template_file: '../data/templates/linking_config.xml'
+  config_output_dir: '/scratch/hpc-prf-whale/albert/WHALE/LIMES/configs/test'
+  linking_output_dir: '/scratch/hpc-prf-whale/albert/WHALE/LIMES/output/starwars_galaxies'
+  cache_dir: '../data/cache'
+  class_alignment_template_file: '../data/templates/class_alignment.xml'
+  query_path: '../data/queries/query_props_coverage_all.rq'
+  limes_jar: '/scratch-n1/hpc-prf-dsg/WHALE-output/limes/limes-core-1.8.1-WORDNET.jar'
+
+logging:
+  level: "INFO"

@@ -14,13 +14,17 @@ def generate_props_for_config(properties: List[str], ns_dict: Dict[str, str]) ->
     if not properties:
         return ""
     xml_lines = [
-        f"    <PROPERTY>{format_property_with_prefix(properties[0], ns_dict)} AS nolang->lowercase</PROPERTY>"
+        f"<PROPERTY>{format_property_with_prefix(properties[0], ns_dict)} AS nolang->lowercase</PROPERTY>"
         ]
     for prop in properties[1:]:
         xml_lines.append(f"    <OPTIONAL_PROPERTY>{format_property_with_prefix(prop, ns_dict)} AS nolang->lowercase</OPTIONAL_PROPERTY>")
     return "\n".join(xml_lines)
 
 #---------------------------- Config Generation --------------------------
+def load_config_template(template_file: str) -> str:
+  with open(template_file, 'r', encoding='utf-8') as f:
+    return f.read()
+
 def generate_config(
     s_cls_uri: str, 
     t_cls_uri: str, 
@@ -31,7 +35,7 @@ def generate_config(
     linking_output_dir: str, 
     s_props_list: List[str], 
     t_props_list: List[str]
-    ) -> None:
+    ) -> str:
     s_cls, t_cls = extract_uri_name(s_cls_uri), extract_uri_name(t_cls_uri)
     s_namespace, t_namespace = extract_namespace(s_cls_uri), extract_namespace(t_cls_uri)
 
@@ -72,3 +76,4 @@ def generate_config(
     with open(file_path, 'w', encoding='utf-8') as f:
         f.write(config_content)
     logging.info(f"Generated config for classes '{s_cls}' and '{t_cls}': {file_path}")
+    return file_path
