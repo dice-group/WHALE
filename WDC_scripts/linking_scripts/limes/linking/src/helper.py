@@ -2,6 +2,29 @@ import subprocess
 import logging
 import os
 import hashlib
+from rdflib.util import guess_format
+
+def get_endpoint_type(source: str) -> str:
+    if os.path.exists(source) and os.path.isfile(source):
+        fmt = guess_format(source)
+        if fmt:
+            fmt = fmt.lower()
+            if fmt in ['nt', 'ntriples']:
+                return 'N3'
+            elif fmt in ['turtle']:
+                return 'TURTLE'
+            elif fmt in ['csv']:
+                return 'CSV'
+            elif fmt in ['xml']:
+                return 'XML'
+            else:
+                logging.warning(f"Unknow format '{fmt}' for local file {source}. Using 'local' as type.")
+                return 'local'
+        else:
+            logging.warning(f"Could not guess format for local file {source}. Using 'local' as type.")
+            return 'local'
+    else:
+        return 'sparql'
 
 def compute_cache_filename(cache_dir: str, *args: str) -> str:
     if not args:
@@ -29,3 +52,4 @@ def run_limes_on_configs( limes_jar: str, config_dir: str) -> None:
 
     for config_file in config_files:
         run_limes(limes_jar, config_file)
+        

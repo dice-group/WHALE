@@ -2,6 +2,7 @@ import os
 import logging
 from typing import List, Dict
 from uri_utils import extract_namespace, extract_uri_name, generate_prefix_label
+from helper import get_endpoint_type
 
 #---------------------------- Property formatting --------------------------
 def format_property_with_prefix(prop_uri: str, ns_dict: Dict[str, str]) -> str:
@@ -58,6 +59,9 @@ def generate_config(
         for ns, label in ns_dict.items()
     )
 
+    s_type = get_endpoint_type(s_endpoint)
+    t_type = get_endpoint_type(t_endpoint)
+
     config_content = config_template.format(
         prefixes=prefixes,
         s_cls=s_cls,
@@ -68,7 +72,9 @@ def generate_config(
         t_endpoint=t_endpoint,
         linking_output_dir=linking_output_dir,
         source_properties=source_properties_xml,
-        target_properties=target_properties_xml
+        target_properties=target_properties_xml,
+        s_type=s_type,
+        t_type=t_type
     )
 
     filename = f"{s_cls}_{t_cls}_config.xml"

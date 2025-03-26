@@ -17,6 +17,7 @@
     <PAGESIZE>-1</PAGESIZE>
     <RESTRICTION>?s a owl:Class</RESTRICTION>
     <PROPERTY>rdfs:label AS nolang->lowercase</PROPERTY>
+    <TYPE>{s_type}</TYPE>
   </SOURCE>
   
   <TARGET>
@@ -26,6 +27,7 @@
     <PAGESIZE>-1</PAGESIZE>
     <RESTRICTION>?t a owl:Class</RESTRICTION>
     <PROPERTY>rdfs:label AS nolang->lowercase</PROPERTY>
+    <TYPE>{t_type}</TYPE>
   </TARGET>
 
   <MLALGORITHM>

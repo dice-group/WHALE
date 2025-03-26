@@ -14,6 +14,7 @@
     <PAGESIZE>-1</PAGESIZE>
     <RESTRICTION>?s a {s_prefix}:{s_cls}</RESTRICTION>
     {source_properties}
+    <TYPE>{s_type}</TYPE>
   </SOURCE>
   
   <TARGET>
@@ -23,6 +24,7 @@
     <PAGESIZE>-1</PAGESIZE>
     <RESTRICTION>?t a {t_prefix}:{t_cls}</RESTRICTION>
     {target_properties}
+    <TYPE>{t_type}</TYPE>
   </TARGET>
 
   <MLALGORITHM>
