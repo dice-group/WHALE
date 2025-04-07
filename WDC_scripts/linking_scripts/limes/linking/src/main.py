@@ -2,6 +2,7 @@ import os
 import yaml
 import logging
 import subprocess
+import argparse
 from typing import Dict
 from sparql_query import get_top_props_cached
 from xml_builder import generate_config, load_config_template
@@ -22,6 +23,11 @@ def load_config(config_file: str) -> Dict:
     return config
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description='Process source and target endpoints.')
+    parser.add_argument("--source_endpoint", type=str, help="Source endpoint URL", default=None)
+    parser.add_argument("--target_endpoint", type=str, help="Target endpoint URL", default=None)
+    args = parser.parse_args()
+
     script_dir = os.path.dirname(os.path.abspath(__file__))
     config_file = os.path.join(script_dir, '..', 'config.yaml')
 
@@ -31,8 +37,9 @@ def main() -> None:
     logging_level = config['logging']['level']
     logging.basicConfig(level=logging_level,format="%(asctime)s [%(levelname)s] %(message)s")
 
-    s_endpoint = config['endpoints']['s_endpoint']
-    t_endpoint = config['endpoints']['t_endpoint']
+    s_endpoint = args.source_endpoint if args.source_endpoint else config['endpoints']['s_endpoint']
+    t_endpoint = args.target_endpoint if args.target_endpoint else config['endpoints']['t_endpoint']
+
     template_file = config['file_paths']['template_file']
     config_output_dir = config['file_paths']['config_output_dir']
     linking_output_dir = config['file_paths']['linking_output_dir']
@@ -53,9 +60,17 @@ def main() -> None:
       for line in f:
         parts = line.strip().split()
         s_uri, t_uri = parts[0], parts[1]
-        linking_config_file = generate_config(s_uri, t_uri, config_output_dir, config_template, 
-                        s_endpoint, t_endpoint, linking_output_dir, 
-                        s_props_list, t_props_list)
+        linking_config_file = generate_config(
+            s_uri, 
+            t_uri, 
+            config_output_dir, 
+            config_template, 
+            s_endpoint, 
+            t_endpoint, 
+            linking_output_dir, 
+            s_props_list, 
+            t_props_list
+        )
 
         try:
             run_limes(limes_path, linking_config_file)

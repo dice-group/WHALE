@@ -14,12 +14,12 @@
     <LABEL>skos</LABEL>
   </PREFIX>
   <PREFIX>
-    <NAMESPACE>http://dbkwik.webdatacommons.org/swg.wikia.com/class/</NAMESPACE>
-    <LABEL>dbk</LABEL>
-  </PREFIX>
-  <PREFIX>
     <NAMESPACE>http://dbkwik.webdatacommons.org/ontology/</NAMESPACE>
     <LABEL>dbo</LABEL>
+  </PREFIX>
+  <PREFIX>
+    <NAMESPACE>http://dbkwik.webdatacommons.org/swg.wikia.com/class/</NAMESPACE>
+    <LABEL>dbk</LABEL>
   </PREFIX>
   <PREFIX>
     <NAMESPACE>http://dbkwik.webdatacommons.org/swtor.wikia.com/class/</NAMESPACE>

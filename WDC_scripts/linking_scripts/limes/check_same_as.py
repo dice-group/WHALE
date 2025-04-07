@@ -4,8 +4,8 @@ from rdflib import Graph
 
 sparql_endpoint = "https://dbpedia.org/sparql"
 
-input_file = "/scratch/hpc-prf-whale/albert/WHALE/LIMES/output/leaf_classes_dbpedia_cosine/same_as_total.nt"
-output_file = "/scratch/hpc-prf-whale/albert/WHALE/LIMES/output/leaf_classes_dbpedia_cosine/checked_same_as_total.nt"
+input_file = "/scratch/hpc-prf-whale/albert/WHALE/LIMES/output/leaf_classes_dbpedia_de/same_as_total.nt"
+output_file = "/scratch/hpc-prf-whale/albert/WHALE/LIMES/output/leaf_classes_dbpedia_de/checked_same_as_total.nt"
 
 max_retries = 10
 initial_wait_time = 5
@@ -19,7 +19,7 @@ def ask_query(subject, obj):
 
     ask{{
         {subject} <http://www.w3.org/2002/07/owl#sameAs> {obj} .
-        filter(strstarts(str({obj}), "http://fr.dbpedia.org/resource/"))
+        filter(strstarts(str({obj}), "http://de.dbpedia.org/resource/"))
     }}
     """
     
