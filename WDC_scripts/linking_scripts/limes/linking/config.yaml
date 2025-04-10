@@ -4,8 +4,8 @@ endpoints:
 
 file_paths:
   template_file: '../data/templates/linking_config.xml'
-  config_output_dir: '/scratch/hpc-prf-whale/albert/WHALE/LIMES/configs/test'
-  linking_output_dir: '/scratch/hpc-prf-whale/albert/WHALE/LIMES/output/test'
+  config_output_dir: '/scratch/hpc-prf-whale/albert/WHALE/LIMES/configs/marvel'
+  linking_output_dir: '/scratch/hpc-prf-whale/albert/WHALE/LIMES/output/marvel'
   cache_dir: '../data/cache'
   class_alignment_template_file: '../data/templates/class_alignment.xml'
   query_path: '../data/queries/query_props_coverage_all.rq'

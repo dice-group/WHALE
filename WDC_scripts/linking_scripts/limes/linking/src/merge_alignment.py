@@ -12,7 +12,7 @@ def detect_format(line: str) -> str:
         return 'nt'
     return None
 
-def merge_alignments(input_dir: str) -> None:
+def merge_alignments(input_dir: str) -> str:
     unique_triples = set()
 
     files = [ 
@@ -59,3 +59,5 @@ def merge_alignments(input_dir: str) -> None:
         logging.info(f'Merged N_Triples file created at: {output_file}')
     else:
         logging.error('No triples found in the files.')
+
+    return output_file

@@ -96,7 +96,7 @@ echo "Running Limes to generate sameAs links..."
 # if [ $? -eq 0]; then
 #     echo "LIMES built successfully."
 
-python /WDC_scripts/linking_scripts/limes/linking/src/main.py \
+python $SCRIPT_DIR/WDC_scripts/linking_scripts/limes/linking/src/main.py \
 --source_endpoint ${dataset_paths[0]} \
 --target_endpoint ${dataset_paths[1]}
 

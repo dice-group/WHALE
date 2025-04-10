@@ -1,6 +1,6 @@
-import subprocess
-import logging
 import os
+import logging
+import subprocess
 import hashlib
 from rdflib.util import guess_format
 

@@ -9,6 +9,7 @@ from xml_builder import generate_config, load_config_template
 from align_classes import process_class_alignment
 from helper import run_limes
 from merge_alignment import merge_alignments
+from nt_converter import enhance_dataset_with_same_as
 
 def resolve_paths(config: Dict) -> Dict:
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -40,6 +41,9 @@ def main() -> None:
     s_endpoint = args.source_endpoint if args.source_endpoint else config['endpoints']['s_endpoint']
     t_endpoint = args.target_endpoint if args.target_endpoint else config['endpoints']['t_endpoint']
 
+    config['endpoints']['s_endpoint'] = s_endpoint
+    config['endpoints']['t_endpoint'] = t_endpoint
+    
     template_file = config['file_paths']['template_file']
     config_output_dir = config['file_paths']['config_output_dir']
     linking_output_dir = config['file_paths']['linking_output_dir']
@@ -78,7 +82,10 @@ def main() -> None:
             logging.error(f"LIMES process failed for config {linking_config_file}: {e}")
         os.remove(linking_config_file)
     
-    merge_alignments(linking_output_dir)
+    same_as_file = merge_alignments(linking_output_dir)
+
+    enhance_dataset_with_same_as(s_endpoint, same_as_file)
+    enhance_dataset_with_same_as(t_endpoint, same_as_file)
 
 if __name__ == "__main__":
     main()
