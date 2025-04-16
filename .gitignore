@@ -188,3 +188,9 @@ Test_dataset/
 *.json
 checkpoints/
 Experiments/
+ISWC Paper/11164-Article Text-14692-1-2-20201228.pdf
+ISWC Paper/D1 workflow.png
+ISWC Paper/D2 workflow.png
+ISWC Paper/Domains with triples.png
+ISWC Paper/Embeddings.cc requirements.txt
+ISWC Paper/WHALE_ISWC_Embeddings.pdf
