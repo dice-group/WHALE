@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE LIMES SYSTEM "limes.dtd">
+<LIMES>
+  <PREFIX>
+    <NAMESPACE>http://www.w3.org/2000/01/rdf-schema#</NAMESPACE>
+    <LABEL>rdfs</LABEL>
+  </PREFIX>
+  <PREFIX>
+    <NAMESPACE>http://www.w3.org/2002/07/owl#</NAMESPACE>
+    <LABEL>owl</LABEL>
+  </PREFIX>
+  
+  <SOURCE>
+    <ID>source</ID>
+    <ENDPOINT>{s_endpoint}</ENDPOINT>
+    <VAR>?s</VAR>
+    <PAGESIZE>-1</PAGESIZE>
+    <RESTRICTION>?s a owl:Class</RESTRICTION>
+    <PROPERTY>rdfs:label AS nolang->lowercase</PROPERTY>
+    <TYPE>{s_type}</TYPE>
+  </SOURCE>
+  
+  <TARGET>
+    <ID>target</ID>
+    <ENDPOINT>{t_endpoint}</ENDPOINT>
+    <VAR>?t</VAR>
+    <PAGESIZE>-1</PAGESIZE>
+    <RESTRICTION>?t a owl:Class</RESTRICTION>
+    <PROPERTY>rdfs:label AS nolang->lowercase</PROPERTY>
+    <TYPE>{t_type}</TYPE>
+  </TARGET>
+
+  <MLALGORITHM>
+    <NAME>wombat simple</NAME>
+    <TYPE>unsupervised</TYPE>
+    <PARAMETER>
+        <NAME>atomic measures</NAME>
+        <VALUE>jaccard, trigrams, cosine</VALUE>
+    </PARAMETER>
+  </MLALGORITHM>
+  
+  <ACCEPTANCE>
+    <THRESHOLD>0.7</THRESHOLD>
+    <FILE>{class_alignment}</FILE>
+    <RELATION>owl:sameAs</RELATION>
+  </ACCEPTANCE>
+
+  <REVIEW>
+    <THRESHOLD>0.0</THRESHOLD>
+    <FILE>{class_alignment}_near.nt</FILE>
+    <RELATION>owl:near</RELATION>
+  </REVIEW>
+  
+  <EXECUTION>
+    <REWRITER>default</REWRITER>
+    <PLANNER>default</PLANNER>
+    <ENGINE>default</ENGINE>
+  </EXECUTION>
+  
+  <OUTPUT>CSV</OUTPUT>
+</LIMES>
