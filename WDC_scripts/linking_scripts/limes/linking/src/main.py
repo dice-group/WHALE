@@ -85,7 +85,7 @@ def main() -> None:
     same_as_file = merge_alignments(linking_output_dir)
 
     enhance_dataset_with_same_as(s_endpoint, same_as_file)
-    enhance_dataset_with_same_as(t_endpoint, same_as_file)
+    enhance_dataset_with_same_as(t_endpoint, same_as_file, 't')
 
 if __name__ == "__main__":
     main()

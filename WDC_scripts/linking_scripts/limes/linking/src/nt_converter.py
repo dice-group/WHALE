@@ -16,7 +16,7 @@ def fix_uri(uri: str) -> str:
     fixed_uri = urlunsplit((parts.scheme, parts.netloc, encoded_path, encoded_query, encoded_fragment))
     return fixed_uri
 
-def enhance_dataset_with_same_as(dataset_file: str, same_as_file: str) -> None:
+def enhance_dataset_with_same_as(dataset_file: str, same_as_file: str, flag: str = 's') -> None:
     dataset_format: Optional[str] = guess_format(dataset_file)
 
     if dataset_format is None:
@@ -42,7 +42,13 @@ def enhance_dataset_with_same_as(dataset_file: str, same_as_file: str) -> None:
                 resource1 = URIRef(fix_uri(parts[0]))
                 resource2 = URIRef(fix_uri(parts[1]))
 
-                g.add((resource1, OWL.sameAs, resource2))
+                if flag.lower() == "s":
+                    g.add((resource1, OWL.sameAs, resource2))
+                elif flag.lower() == "t":
+                    g.add((resource2, OWL.sameAs, resource1))
+                else:
+                    logging.error("Invalid flag provided. Use 's' for source or 't' for target.")
+                    continue
     except Exception as e:
         logging.error(f"Error processing sameAs file '{same_as_file}': {e}")
         return
@@ -54,6 +60,3 @@ def enhance_dataset_with_same_as(dataset_file: str, same_as_file: str) -> None:
         logging.info(f"Successfully converted {dataset_file} to N-Triples format. Output to {output_file}.")
     except Exception as e:
         logging.error(f"Error serializing to N-Triples: {e}")
-
-enhance_dataset_with_same_as('/scratch/hpc-prf-whale/oaei/the_old_republic_wiki/index.xml', '/scratch/hpc-prf-whale/albert/WHALE/LIMES/output/starwars_the_old_republic_wiki_local/same_as_total.nt')
-enhance_dataset_with_same_as('/scratch/hpc-prf-whale/oaei/starwars/index_cleaned.xml', '/scratch/hpc-prf-whale/albert/WHALE/LIMES/output/starwars_the_old_republic_wiki_local/same_as_total.nt')

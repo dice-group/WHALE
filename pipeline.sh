@@ -15,9 +15,6 @@
 #!/bin/bash
 
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
-CONFIG_DIR=$"$SCRIPT_DIR/LIMES/configs"
-LIMES_OUTPUT=$"$SCRIPT_DIR/Alignment/procrustes/limes"
-AML_INPUT=$"$SCRIPT_DIR/AML_v3.2/data/input"
 
 # Function to display usage
 usage() {
@@ -60,50 +57,52 @@ done
 
 # Step 5: Generate sameAs links using Limes
 echo "Running Limes to generate sameAs links..."
-# TODO: should be ucomment for local testing
 # - Add command to download limes 
-# if [ ! -d "$SCRIPT_DIR/LIMES" ]; then
-#     echo "Cloning LIMES repository..."
-#     git clone https://github.com/dice-group/LIMES.git
-# else
-#     echo "LIMES repository already exists."
-# fi
+if [ ! -d "$SCRIPT_DIR/LIMES" ]; then
+    echo "Cloning LIMES repository..."
+    git clone https://github.com/dice-group/LIMES.git
+else
+    echo "LIMES repository already exists."
+fi
 
-# cd $SCRIPT_DIR/LIMES
+cd $SCRIPT_DIR/LIMES || exit 1
 
-# echo "Building the LIMES project using Maven..."
+echo "Creating config and output directories if they don't exist..."
+mkdir -p config
 
-# if ! command -v mvn &> /dev/null
-# then
-#     echo "Maven is not installed. Installing Maven..."
-#     sudo apt-get update
-#     sudo apt-get install maven -y
+echo "Building the LIMES project using Maven..."
 
-#     if command -v mvn &> /dev/null
-#     then
-#         echo "Maven has been installed successfully."
-#     else   
-#         echo "Maven installation failed. Exiting the script."
-#         exit 1
-#     fi
-# else
-#     echo "Maven is already installed."
-# fi
+if ! command -v mvn &> /dev/null
+then
+    echo "Maven is not installed. Installing Maven..."
+    sudo apt-get update
+    sudo apt-get install maven -y
 
-# mvn clean package shade:shade -Dmaven.test.skip=true
+    if command -v mvn &> /dev/null
+    then
+        echo "Maven has been installed successfully."
+    else   
+        echo "Maven installation failed. Exiting the script."
+        exit 1
+    fi
+else
+    echo "Maven is already installed."
+fi
 
-# # - Run Limes on the config files.
-# if [ $? -eq 0]; then
-#     echo "LIMES built successfully."
+mvn clean package shade:shade -Dmaven.test.skip=true
 
-python $SCRIPT_DIR/WDC_scripts/linking_scripts/limes/linking/src/main.py \
---source_endpoint ${dataset_paths[0]} \
---target_endpoint ${dataset_paths[1]}
+# - Run Limes on the config files.
+if [ $? -eq 0]; then
+    echo "LIMES built successfully."
 
-# else
-#     echo "LIMES build failed."
-#     exit 1
-# fi
+    python $SCRIPT_DIR/WDC_scripts/linking_scripts/limes/linking/src/main.py \
+    --source_endpoint ${dataset_paths[0]} \
+    --target_endpoint ${dataset_paths[1]}
+
+else
+    echo "LIMES build failed."
+    exit 1
+fi
 
 # Step 6: Run Procrustes algorithm
 echo "Running Procrustes algorithm..."
