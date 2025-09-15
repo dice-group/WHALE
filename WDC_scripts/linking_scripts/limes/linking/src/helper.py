@@ -17,6 +17,8 @@ def get_endpoint_type(source: str) -> str:
                 return 'CSV'
             elif fmt in ['xml']:
                 return 'XML'
+            elif fmt in ['nquads', 'trig']:
+                return 'NQUADS'
             else:
                 logging.warning(f"Unknow format '{fmt}' for local file {source}. Using 'local' as type.")
                 return 'local'
@@ -36,7 +38,12 @@ def compute_cache_filename(cache_dir: str, *args: str) -> str:
     return os.path.join(cache_dir, filename)
 
 def run_limes(limes_jar: str, config_file: str) -> None:
-    command = ['java', '-Xmx16g', '-jar', limes_jar, config_file]
+    command = [
+        'java',
+        '-Xmx120g',
+        "-XX:+UseG1GC",
+        '-jar', limes_jar, config_file
+    ]
     logging.info(f"Running LIMES: {' '.join(command)}")
     subprocess.run(command, check=True)
     logging.info("LIMES process completed.")

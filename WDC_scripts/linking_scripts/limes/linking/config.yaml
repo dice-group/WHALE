@@ -1,15 +1,15 @@
 endpoints:
-  s_endpoint: ""
-  t_endpoint: ""
+  s_endpoint: "/scratch/hpc-prf-whale/WHALE-data/class_dataset/dataset/part_6.cleaned.nq"
+  t_endpoint: "/scratch/hpc-prf-whale/WHALE-data/class_dataset/educational_org/part_7.cleaned.nq"
 
 file_paths:
   template_file: "../data/templates/linking_config.xml"
-  config_output_dir: "../../../../LIMES/configs"
-  linking_output_dir: "../../../../Alignment/procrustes/limes"
+  config_output_dir: "../../../../../LIMES/configs"
+  linking_output_dir: "../../../../../Alignment/procrustes/limes/test"
   cache_dir: "../data/cache"
   class_alignment_template_file: "../data/templates/class_alignment.xml"
   query_path: "../data/queries/query_props_coverage_all.rq"
-  limes_jar: "../../../../LIMES/target/limes-core-1.8.1-SNAPSHOT.jar"
+  limes_jar: "/scratch/hpc-prf-whale/albert/limes_custom/limes_custom/limes-core/target/limes-core-1.8.1-SNAPSHOT-shaded.jar"
 
 logging:
   level: "INFO"

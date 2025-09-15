@@ -6,36 +6,49 @@ from typing import List, Dict, Any
 from SPARQLWrapper import SPARQLWrapper, JSON
 from helper import compute_cache_filename
 
+def _load_rdf_any(fmt: str):
+    is_quad = fmt in ("nquads", "trig")
+
+    g = rdflib.Dataset() if is_quad else rdflib.Graph()
+    if hasattr(g, "default_union"):
+        g.default_union = True
+
+    return g
+
+def _select_top_by_coverage(props: List[Dict[str, Any]], slack: float = 0.2) -> List[Dict[str, Any]]:
+    if not props:
+        return []
+    max_cov = max(p["coverage"] for p in props)
+    threshold = max_cov * (1 - slack)
+    top = [p for p in props if p["coverage"] >= threshold]
+    top.sort(key=lambda d: (d["coverage"], d["count"]), reverse=True)
+    logging.info(f"Best coverage: {max_cov}; threshold (within {int(slack*100)}%): {threshold}; kept {len(top)}/{len(props)}")
+    return top
+
 def get_top_props_local(data_file: str, query_file: str) -> List[Dict[str, Any]]:
     logging.info(f"Executing local SPARQL query from file '{query_file}' on data file: {data_file}")
 
     with open(query_file, 'r') as file:
         query = file.read()
 
-    g = rdflib.Graph()
     fmt = rdflib.util.guess_format(data_file)
+    g = _load_rdf_any(fmt)
     g.parse(data_file, format=fmt)
 
     results = g.query(query)
 
-    top_props = []
+    all_props: List[Dict[str, Any]] = []
     for row in results:
         try:
             prop_val = str(row["p"])
             count_val = int(row["count"])
             coverage_val = float(row["coverage"])
+            all_props.append({"property": prop_val, "count": count_val, "coverage": coverage_val})
         except (KeyError, ValueError) as e:
             logging.error(f"Error processing row {row}: {e}")
             continue
 
-        if coverage_val >= 50:
-            top_props.append({
-                "property": prop_val,
-                "count": count_val,
-                "coverage": coverage_val
-            })
-
-    logging.info(f"Local SPARQL query returned {len(top_props)} properties.")
+    top_props = _select_top_by_coverage(all_props)
     return top_props
 
 def get_top_props(endpoint: str, query_file: str) -> List[Dict[str, Any]]:
@@ -48,16 +61,20 @@ def get_top_props(endpoint: str, query_file: str) -> List[Dict[str, Any]]:
     sparql.setReturnFormat(JSON)
 
     results = sparql.query().convert()
-    top_props = [
-        {
-            "property": result["p"]["value"],
-            "count": int(result["count"]["value"]),
-            "coverage": float(result["coverage"]["value"])
-        }
-        for result in results["results"]["bindings"] 
-        if float(result["coverage"]["value"]) >= 50
-    ]
-    logging.info(f"SPARQL query returned {len(top_props)} properties.")
+
+    all_props = []
+    for r in results["results"]["bindings"]:
+        try:
+            all_props.append({
+                "property": r["p"]["value"],
+                "count": int(r["count"]["value"]),
+                "coverage": float(r["coverage"]["value"])
+            })
+        except (KeyError, ValueError) as e:
+            logging.error(f"Error processing row {r}: {e}")
+            continue
+
+    top_props = _select_top_by_coverage(all_props)
     return top_props
 
 def get_top_props_cached(cache_dir: str, source: str, query_file: str) -> List[Dict[str, Any]]:
