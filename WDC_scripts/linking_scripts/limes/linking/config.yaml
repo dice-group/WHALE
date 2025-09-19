@@ -1,6 +1,6 @@
 endpoints:
-  s_endpoint: "/scratch/hpc-prf-whale/WHALE-data/class_dataset/dataset/part_6.cleaned.nq"
-  t_endpoint: "/scratch/hpc-prf-whale/WHALE-data/class_dataset/educational_org/part_7.cleaned.nq"
+  s_endpoint: "/scratch/hpc-prf-whale/WHALE-data/class_dataset/educational_org/educational_org_merged_skolem.nt"
+  t_endpoint: "/scratch/hpc-prf-whale/WHALE-data/class_dataset/dataset/dataset_merged_skolem.nt"
 
 file_paths:
   template_file: "../data/templates/linking_config.xml"
