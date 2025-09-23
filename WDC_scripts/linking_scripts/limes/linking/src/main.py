@@ -53,8 +53,8 @@ def main() -> None:
 
     config_template = load_config_template(template_file)
 
-    s_props_data = get_top_props_cached(cache_dir, s_endpoint, query_path)
-    t_props_data = get_top_props_cached(cache_dir, t_endpoint, query_path)
+    s_props_data = get_top_props_cached(cache_dir, s_endpoint)
+    t_props_data = get_top_props_cached(cache_dir, t_endpoint)
     s_props_list = [entry['property'] for entry in s_props_data]
     t_props_list = [entry['property'] for entry in t_props_data]
 

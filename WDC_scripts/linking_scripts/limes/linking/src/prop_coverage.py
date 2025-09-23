@@ -4,7 +4,7 @@ import re
 import math
 import hashlib
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any, Dict, cast
 
 class HyperLogLog:
     __slots__ = ("p", "m", "M")
@@ -139,3 +139,51 @@ def coverage_from_local(
 
 def to_jsonable(rows: List[CoverageRow]) -> List[dict]:
     return [{"property": r.p, "count": r.count, "coverage": r.coverage} for r in rows]
+
+def _run_sparql(endpoint: str, query: str) -> Dict[str, Any]:
+    try:
+        from SPARQLWrapper import SPARQLWrapper, JSON
+    except Exception as e:
+        raise RuntimeError("SPARQLWrapper is required for SPARQL mode") from e
+
+    sp = SPARQLWrapper(endpoint)
+    sp.setReturnFormat(JSON)
+    sp.setQuery(query)
+    res = sp.query().convert()
+    return cast(Dict[str, Any], res)
+
+def coverage_from_sparql(endpoint: str) -> List[CoverageRow]:
+    prefix = """PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"""
+
+    q1 = f"""{prefix}
+SELECT ?p (COUNT(DISTINCT ?r) AS ?count)
+WHERE {{
+  ?r ?p ?o .
+  FILTER(isLiteral(?o))
+}}
+GROUP BY ?p
+ORDER BY DESC(?count)
+LIMIT {10}
+"""
+    res1 = _run_sparql(endpoint, q1)
+    rows = []
+    for b in res1["results"]["bindings"]:
+        p = b["p"]["value"]
+        cnt = int(b["count"]["value"])
+        rows.append((p, cnt))
+
+    q2 = f"""{prefix}
+SELECT (COUNT(DISTINCT ?r) AS ?total)
+WHERE {{
+  ?r ?p ?o .
+  FILTER(isLiteral(?o))
+}}
+"""
+    
+    res2 = _run_sparql(endpoint, q2)
+    total = int(res2["results"]["bindings"][0]["total"]["value"]) if res2["results"]["bindings"] else 1
+    total = max(1, total)
+
+    cov_rows = [CoverageRow(p=p, count=cnt, coverage=(100.0 * cnt) / total) for p, cnt in rows]
+    cov_rows.sort(key=lambda r: (r.coverage, r.count), reverse=True)
+    return cov_rows[:10] if 10 > 0 else cov_rows

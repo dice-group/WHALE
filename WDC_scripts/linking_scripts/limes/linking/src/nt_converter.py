@@ -3,7 +3,7 @@ from urllib.parse import urlsplit, urlunsplit, quote
 from rdflib import Graph, URIRef
 from rdflib.namespace import OWL
 from rdflib.util import guess_format
-from sparql_query import _load_rdf_any
+from sparql_query import load_rdf_any
 import logging
 from typing import Optional
 
@@ -25,7 +25,7 @@ def enhance_dataset_with_same_as(dataset_file: str, same_as_file: str, flag: str
         return
 
     logging.info(f"Guessed format for {dataset_file}: {dataset_format}")
-    g = _load_rdf_any(dataset_format)
+    g = load_rdf_any(dataset_format)
 
     try:
         g.parse(dataset_file, format=dataset_format)
