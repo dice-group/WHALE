@@ -52,9 +52,9 @@ def process_class_alignment(config: Dict) -> str:
         except Exception as e:
             logging.error(f"LIMES process failed: {e}")
             raise
-        finally:
-            if os.path.exists(temp_config_file):
-                os.remove(temp_config_file)
-                logging.info(f"Temporary alignment config file {temp_config_file} deleted.")
+        # finally:
+        #     if os.path.exists(temp_config_file):
+        #         os.remove(temp_config_file)
+        #         logging.info(f"Temporary alignment config file {temp_config_file} deleted.")
     
     return cache_file

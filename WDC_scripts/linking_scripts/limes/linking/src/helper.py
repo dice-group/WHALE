@@ -40,7 +40,7 @@ def compute_cache_filename(cache_dir: str, *args: str) -> str:
 def run_limes(limes_jar: str, config_file: str) -> None:
     command = [
         'java',
-        '-Xmx120g',
+        '-Xmx240g',
         "-XX:+UseG1GC",
         '-jar', limes_jar, config_file
     ]

@@ -34,6 +34,8 @@ def get_top_props(endpoint: str, local=True) -> List[Dict[str, Any]]:
     return top_props
 
 def get_top_props_cached(cache_dir: str, source: str) -> List[Dict[str, Any]]:
+    os.makedirs(cache_dir, exist_ok=True)
+
     cache_file = compute_cache_filename(cache_dir, source)
     
     if os.path.exists(cache_file):

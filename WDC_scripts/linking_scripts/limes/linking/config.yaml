@@ -1,11 +1,11 @@
 endpoints:
-  s_endpoint: "/scratch/hpc-prf-whale/WHALE-data/class_dataset/educational_org/educational_org_merged_skolem.nt"
-  t_endpoint: "/scratch/hpc-prf-whale/WHALE-data/class_dataset/dataset/dataset_merged_skolem.nt"
+  s_endpoint: "/scratch/hpc-prf-whale/WHALE-data/admin_area/total_skol_clean2.nt"
+  t_endpoint: "/scratch/hpc-prf-whale/WHALE-data/college_or_uni/total_skol_clean2.nt"
 
 file_paths:
   template_file: "../data/templates/linking_config.xml"
-  config_output_dir: "../../../../../LIMES/configs"
-  linking_output_dir: "../../../../../Alignment/procrustes/limes/test"
+  config_output_dir: "../../../../../LIMES/configs/admin_area_college_uni"
+  linking_output_dir: "../../../../../Alignment/procrustes/limes/admin_area_college_uni"
   cache_dir: "../data/cache"
   class_alignment_template_file: "../data/templates/class_alignment.xml"
   query_path: "../data/queries/query_props_coverage_all.rq"
