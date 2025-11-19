@@ -41,20 +41,24 @@ def main() -> None:
     s_endpoint = args.source_endpoint if args.source_endpoint else config['endpoints']['s_endpoint']
     t_endpoint = args.target_endpoint if args.target_endpoint else config['endpoints']['t_endpoint']
 
+    s_graph = config['endpoints'].get('s_graph', '') or ''
+    t_graph = config['endpoints'].get('t_graph', '') or ''
+
     config['endpoints']['s_endpoint'] = s_endpoint
     config['endpoints']['t_endpoint'] = t_endpoint
+    config['endpoints']['s_graph'] = s_graph
+    config['endpoints'][t_graph] = t_graph
     
     template_file = config['file_paths']['template_file']
     config_output_dir = config['file_paths']['config_output_dir']
     linking_output_dir = config['file_paths']['linking_output_dir']
-    query_path = config['file_paths']['query_path']
     limes_path = config['file_paths']['limes_jar']
     cache_dir = config['file_paths']['cache_dir']
 
     config_template = load_config_template(template_file)
 
-    s_props_data = get_top_props_cached(cache_dir, s_endpoint)
-    t_props_data = get_top_props_cached(cache_dir, t_endpoint)
+    s_props_data = get_top_props_cached(cache_dir, s_endpoint, graph=s_graph)
+    t_props_data = get_top_props_cached(cache_dir, t_endpoint, graph=t_graph)
     s_props_list = [entry['property'] for entry in s_props_data]
     t_props_list = [entry['property'] for entry in t_props_data]
 
@@ -67,6 +71,8 @@ def main() -> None:
         linking_config_file = generate_config(
             s_uri, 
             t_uri, 
+            s_graph,
+            t_graph,
             config_output_dir, 
             config_template, 
             s_endpoint, 

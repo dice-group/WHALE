@@ -1,13 +1,15 @@
 endpoints:
-  s_endpoint: "/scratch/hpc-prf-whale/WHALE-data/admin_area/total_skol_clean2.nt"
-  t_endpoint: "/scratch/hpc-prf-whale/WHALE-data/college_or_uni/total_skol_clean2.nt"
+  s_endpoint: "https://dbpedia.org/sparql"
+  t_endpoint: "https://wikidata.data.dice-research.org/sparql"
+  s_graph: "http://dbpedia.org"
+  t_graph: ""
 
 file_paths:
-  template_file: "../data/templates/linking_config.xml"
-  config_output_dir: "../../../../../LIMES/configs/admin_area_college_uni"
-  linking_output_dir: "../../../../../Alignment/procrustes/limes/admin_area_college_uni"
+  template_file: "../data/templates/dbpedia_wikidata_linking.xml"
+  config_output_dir: "../../../../../LIMES/configs/dbpedia_wiki"
+  linking_output_dir: "../../../../../Alignment/procrustes/limes/dbpedia_wiki"
   cache_dir: "../data/cache"
-  class_alignment_template_file: "../data/templates/class_alignment.xml"
+  class_alignment_template_file: "../data/templates/dbpedia_wikidata.xml"
   query_path: "../data/queries/query_props_coverage_all.rq"
   limes_jar: "/scratch/hpc-prf-whale/albert/limes_custom/limes_custom/limes-core/target/limes-core-1.8.1-SNAPSHOT-shaded.jar"
 

@@ -3,8 +3,10 @@ from __future__ import annotations
 import re
 import math
 import hashlib
+import logging
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Any, Dict, cast
+from helper import compute_cache_filename
+from typing import Dict, List, Optional, Any, Union
 
 class HyperLogLog:
     __slots__ = ("p", "m", "M")
@@ -19,7 +21,7 @@ class HyperLogLog:
     def _hash64(x: bytes) -> int:
         return int.from_bytes(hashlib.blake2b(x, digest_size=8).digest(), "big", signed=False)
     
-    def add(self, value:bytes | str):
+    def add(self, value: Union[bytes, str]):
         if isinstance(value, str):
             value = value.encode("utf-8", "ignore")
         x = self._hash64(value)
@@ -140,50 +142,199 @@ def coverage_from_local(
 def to_jsonable(rows: List[CoverageRow]) -> List[dict]:
     return [{"property": r.p, "count": r.count, "coverage": r.coverage} for r in rows]
 
-def _run_sparql(endpoint: str, query: str) -> Dict[str, Any]:
+def _sleep_with_jitter(base: float, attempt: int, cap: float = 60.0):
+    import random, time
+    delay = min(base * (2 ** (attempt - 1)), cap)
+    time.sleep(random.uniform(0, delay))
+
+def _write_nt_line(s_iri: str, p_iri: str, lit: dict, out):
+    v = lit["value"]
+    v_esc = v.replace('\\', '\\\\').replace('"', '\\"')
+    o = f"\"{v_esc}\""
+    if "xml:lang" in lit:
+        o += f"@{lit['xml:lang']}"
+    elif "datatype" in lit:
+        o += f"^^<{lit['datatype']}>"
+    out.write(f"<{s_iri}> <{p_iri}> {o} .\n")
+
+def _basic_triples_pattern(graph: str) -> str:
+    inner = "?s ?p ?o .\n FILTER(isLiteral(?o))"
+    if graph:
+        return f"GRAPH <{graph}> {{ {inner} }}"
+    return inner
+
+def _sample_query_offset(offset: int, limit: int, graph: str) -> str:
+    return f"""
+SELECT ?s ?p ?o WHERE {{
+  {_basic_triples_pattern(graph)}
+}}
+OFFSET {offset}
+LIMIT {limit}
+"""
+
+def collect_sample_to_nt(endpoint: str,
+                         out_path: str,
+                         *,
+                         total_pages: int = 6,
+                         page_limit: int = 100,
+                         runner_kwargs = None,
+                         graph: str = "") -> int:
+    
+    if runner_kwargs is None:
+        runner_kwargs = dict(max_retries=2, hard_timeout_ms=60000)
+
+    gaps = [0]
+    gap = page_limit
+
+    for _ in range(total_pages - 1):
+        gaps.append(gaps[-1] + gap)
+        gap *= 2
+
+    with open(out_path, 'wt', encoding='utf-8') as _:
+        pass
+
+    total = 0
+    with open(out_path, 'at', encoding="utf-8") as out:
+        logging.info(f'Saving triples to {out_path}')
+        for off in gaps:
+            q = _sample_query_offset(off, page_limit, graph)
+            try:
+                res = _run_sparql(endpoint, q, **runner_kwargs)
+            except Exception:
+                continue
+            bindings = res.get("results", {}).get("bindings", [])
+            if not bindings:
+                continue
+            for b in bindings:
+                _write_nt_line(b["s"]["value"], b["p"]["value"], b["o"], out)
+            total += len(bindings)
+            if len(bindings) < page_limit:
+                break
+
+    return total
+
+def _run_sparql(endpoint: str, query: str, *, max_retries: int = 6, base_backoff: float = 1.5, hard_timeout_ms: int = 120000) -> Dict[str, Any]:
     try:
-        from SPARQLWrapper import SPARQLWrapper, JSON
+        from SPARQLWrapper import SPARQLWrapper, JSON, POST
     except Exception as e:
         raise RuntimeError("SPARQLWrapper is required for SPARQL mode") from e
-
-    sp = SPARQLWrapper(endpoint)
-    sp.setReturnFormat(JSON)
-    sp.setQuery(query)
-    res = sp.query().convert()
-    return cast(Dict[str, Any], res)
-
-def coverage_from_sparql(endpoint: str) -> List[CoverageRow]:
-    prefix = """PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"""
-
-    q1 = f"""{prefix}
-SELECT ?p (COUNT(DISTINCT ?r) AS ?count)
-WHERE {{
-  ?r ?p ?o .
-  FILTER(isLiteral(?o))
-}}
-GROUP BY ?p
-ORDER BY DESC(?count)
-LIMIT {10}
-"""
-    res1 = _run_sparql(endpoint, q1)
-    rows = []
-    for b in res1["results"]["bindings"]:
-        p = b["p"]["value"]
-        cnt = int(b["count"]["value"])
-        rows.append((p, cnt))
-
-    q2 = f"""{prefix}
-SELECT (COUNT(DISTINCT ?r) AS ?total)
-WHERE {{
-  ?r ?p ?o .
-  FILTER(isLiteral(?o))
-}}
-"""
     
-    res2 = _run_sparql(endpoint, q2)
-    total = int(res2["results"]["bindings"][0]["total"]["value"]) if res2["results"]["bindings"] else 1
-    total = max(1, total)
+    from urllib.error import HTTPError, URLError
+    import json
+    
+    UA = "WHALE/1.0 (contact: akhomich@mail.uni-paderborn.de)"
+    attempt = 0
+    last_err: Optional[Exception] = None
 
-    cov_rows = [CoverageRow(p=p, count=cnt, coverage=(100.0 * cnt) / total) for p, cnt in rows]
-    cov_rows.sort(key=lambda r: (r.coverage, r.count), reverse=True)
-    return cov_rows[:10] if 10 > 0 else cov_rows
+    while attempt < max_retries:
+        attempt += 1
+        try:
+            sp = SPARQLWrapper(endpoint)
+            sp.setReturnFormat(JSON)
+            sp.setMethod(POST)
+            sp.setQuery(query)
+            sp.addCustomHttpHeader("User-Agent", UA)
+            sp.addCustomHttpHeader("Accept", "application/sparql-results+json")
+            sp.addParameter("timeout", str(hard_timeout_ms))
+            sp.addParameter("maxlag", "5")
+            sp.addParameter("format", "json")
+
+            q = sp.query()
+            resp = q.response
+
+            headers = {}
+            try:
+                headers = dict(resp.info().items())
+            except Exception:
+                headers = {}
+            raw = resp.read()
+
+            ct = headers.get("Content-Type", "")
+            ct_lower = ct.lower() if isinstance(ct, str) else str(ct).lower()
+            looks_html = isinstance(raw, (bytes, bytearray)) and raw[:256].lstrip().startswith(b"<")
+            if "text/html" in ct_lower or looks_html:
+                snippet = (raw[:300].decode("utf-8", "replace") if isinstance(raw, (bytes, bytearray)) else str(raw))[:300]
+                raise RuntimeError(f"Endpoint returned HTML, not JSON. CT={ct} Snippet={snippet!r}")
+            
+            if isinstance(raw, (bytes, bytearray)):
+                return json.loads(raw.decode("utf-8"))
+            if isinstance(raw, str):
+                return json.loads(raw)
+            
+            return q.convert()
+        
+        except HTTPError as e:
+            status = getattr(e, "code", None)
+            retry_after = None
+            try:
+                retry_after = e.headers.get("Retry-After")
+            except Exception:
+                pass
+            if status in (429, 502, 503, 504):
+                if attempt >= max_retries:
+                    raise
+                if retry_after:
+                    try:
+                        wait_s = max(0.0, float(retry_after))
+                    except Exception:
+                        wait_s = None
+                else:
+                    wait_s = None
+                if wait_s is None:
+                    logging.warning(f"[{endpoint}] HTTP {status}; retrying (attempt {attempt}/{max_retries})")
+                    _sleep_with_jitter(base_backoff, attempt)
+                else:
+                    logging.warning(f"[{endpoint}] HTTP {status} Retry-After={wait_s}; retrying (attempt {attempt}/{max_retries})")
+                    import time as _t; _t.sleep(wait_s)
+                last_err = e
+                continue
+            raise
+        except (URLError, TimeoutError) as e:
+            if attempt >= max_retries:
+                raise
+            logging.warning(f"[{endpoint}] Network/timeout; retrying (attempt {attempt}/{max_retries}): {e}")
+            _sleep_with_jitter(base_backoff, attempt)
+            last_err = e
+            continue
+        except (json.JSONDecodeError, RuntimeError) as e:
+            if attempt >= max_retries:
+                raise
+            logging.warning(f"[{endpoint}] Bad payload; retrying (attempt {attempt}/{max_retries}): {e}")
+            _sleep_with_jitter(base_backoff, attempt)
+            last_err = e
+            continue
+
+    if last_err:
+        raise last_err
+    raise RuntimeError("SPARQL query failed with unknown error")
+
+def coverage_from_sparql(
+    endpoint: str, *,
+    total_pages: int = 6,
+    page_limit: int = 20_000,
+    hll_p: int = 18,
+    top_k: int = 10,
+    cache_dir: str,
+    graph: str = "",
+) -> List[CoverageRow]:
+        cache_file = compute_cache_filename(cache_dir, endpoint, graph or "any-graph", "sample")
+        try:
+            n_triples = collect_sample_to_nt(
+                endpoint,
+                cache_file,
+                total_pages=total_pages,
+                page_limit=page_limit,
+                runner_kwargs=dict(max_retries=2, hard_timeout_ms=60_000),
+                graph=graph,
+            )
+            if n_triples == 0:
+                raise RuntimeError(f"No triples sampled from {endpoint} (graph={graph or 'ANY'})")
+
+            rows_local: List[CoverageRow] = coverage_from_local(
+                cache_file,
+                hll_p=hll_p,
+                sample=1.0,
+                top_k=top_k
+            )
+            return rows_local
+        except Exception: pass

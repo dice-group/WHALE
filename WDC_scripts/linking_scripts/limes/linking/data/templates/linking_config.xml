@@ -10,6 +10,7 @@
   <SOURCE>
     <ID>source</ID>
     <ENDPOINT>{s_endpoint}</ENDPOINT>
+    {s_graph}
     <VAR>?s</VAR>
     <PAGESIZE>-1</PAGESIZE>
     <RESTRICTION>?s a {s_prefix}:{s_cls}</RESTRICTION>
@@ -20,6 +21,7 @@
   <TARGET>
     <ID>target</ID>
     <ENDPOINT>{t_endpoint}</ENDPOINT>
+    {t_graph}
     <VAR>?t</VAR>
     <PAGESIZE>-1</PAGESIZE>
     <RESTRICTION>?t a {t_prefix}:{t_cls}</RESTRICTION>

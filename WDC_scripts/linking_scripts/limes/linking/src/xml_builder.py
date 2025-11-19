@@ -2,7 +2,7 @@ import os
 import logging
 from typing import List, Dict
 from uri_utils import extract_namespace, extract_uri_name, generate_prefix_label
-from helper import get_endpoint_type
+from helper import get_endpoint_type, is_graph
 
 #---------------------------- Property formatting --------------------------
 def format_property_with_prefix(prop_uri: str, ns_dict: Dict[str, str]) -> str:
@@ -29,6 +29,8 @@ def load_config_template(template_file: str) -> str:
 def generate_config(
     s_cls_uri: str, 
     t_cls_uri: str, 
+    s_graph: str,
+    t_graph: str,
     output_dir: str, 
     config_template: str, 
     s_endpoint: str, 
@@ -62,10 +64,15 @@ def generate_config(
     s_type = get_endpoint_type(s_endpoint)
     t_type = get_endpoint_type(t_endpoint)
 
+    s_g = is_graph(s_graph)
+    t_g = is_graph(t_graph)
+
     config_content = config_template.format(
         prefixes=prefixes,
         s_cls=s_cls,
         t_cls=t_cls,
+        s_graph=s_g,
+        t_graph=t_g,
         s_prefix=ns_dict[s_namespace],
         t_prefix=ns_dict[t_namespace],
         s_endpoint=s_endpoint,

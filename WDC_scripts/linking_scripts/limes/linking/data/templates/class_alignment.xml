@@ -13,6 +13,7 @@
   <SOURCE>
     <ID>source</ID>
     <ENDPOINT>{s_endpoint}</ENDPOINT>
+    {s_graph}
     <VAR>?s</VAR>
     <PAGESIZE>-1</PAGESIZE>
     <RESTRICTION>?s a owl:Class</RESTRICTION>
@@ -23,6 +24,7 @@
   <TARGET>
     <ID>target</ID>
     <ENDPOINT>{t_endpoint}</ENDPOINT>
+    {t_graph}
     <VAR>?t</VAR>
     <PAGESIZE>-1</PAGESIZE>
     <RESTRICTION>?t a owl:Class</RESTRICTION>

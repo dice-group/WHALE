@@ -25,18 +25,18 @@ def _select_top_by_coverage(props: List[Dict[str, Any]], slack: float = 0.2) -> 
     logging.info(f"Best coverage: {max_cov}; threshold (within {int(slack*100)}%): {threshold}; kept {len(top)}/{len(props)}")
     return top
 
-def get_top_props(endpoint: str, local=True) -> List[Dict[str, Any]]:
+def get_top_props(endpoint: str, local=True, *, cache_dir: str, graph: str = "") -> List[Dict[str, Any]]:
     if local: data = coverage_from_local(endpoint)
-    else: data = coverage_from_sparql(endpoint)
+    else: data = coverage_from_sparql(endpoint, cache_dir=cache_dir, graph=graph)
     all_props = to_jsonable(data)
 
     top_props = _select_top_by_coverage(all_props)
     return top_props
 
-def get_top_props_cached(cache_dir: str, source: str) -> List[Dict[str, Any]]:
+def get_top_props_cached(cache_dir: str, source: str, *, graph: str = "") -> List[Dict[str, Any]]:
     os.makedirs(cache_dir, exist_ok=True)
 
-    cache_file = compute_cache_filename(cache_dir, source)
+    cache_file = compute_cache_filename(cache_dir, source, graph or "any_graph")
     
     if os.path.exists(cache_file):
         logging.info(f"Loading cached property data from {cache_file}")
@@ -45,10 +45,10 @@ def get_top_props_cached(cache_dir: str, source: str) -> List[Dict[str, Any]]:
     else:
         logging.info("No cached property data found. Executing query...")
         if os.path.exists(source) and os.path.isfile(source):
-            data = get_top_props(source)
+            data = get_top_props(source, cache_dir=cache_dir)
         else:
-            data = get_top_props(source, local=False)
+            data = get_top_props(source, local=False, cache_dir=cache_dir, graph=graph)
         with open(cache_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f)
+            json.dump(data, f, ensure_ascii=False)
         logging.info(f"Cached property data to {cache_file}")
     return data

@@ -28,6 +28,12 @@ def get_endpoint_type(source: str) -> str:
     else:
         return 'sparql'
 
+def is_graph(graph):
+    if graph:
+        return f'<GRAPH>{graph}</GRAPH>'
+    else:
+        return ''
+
 def compute_cache_filename(cache_dir: str, *args: str) -> str:
     if not args:
         raise ValueError("At least one input string must be provided to compute the cache filename.")
