@@ -81,6 +81,20 @@ TRIPLE = re.compile(
 def is_literal(tok: str) -> bool:
     return tok.startswith('"')
 
+def literal_value_len(tok: str) -> int:
+    assert tok.startswith('"')
+    i = 1
+    n = len(tok)
+    while i < n:
+        c = tok[i]
+        if c == '\\':
+            i += 2
+            continue
+        if c == '"':
+            return i - 1
+        i += 1
+    return 10**12
+
 def strip_brackets(iri:str) -> str:
     return iri[1:-1] if iri.startswith("<") and iri.endswith(">") else iri
 
@@ -115,7 +129,11 @@ def coverage_from_local(
             if not m:
                 continue
             s, p, o = m.group("s"), m.group("p"), m.group("o")
+
             if not is_literal(o):
+                continue
+
+            if literal_value_len(o) > 120:
                 continue
 
             if not _subject_in_sample(s, sample):
