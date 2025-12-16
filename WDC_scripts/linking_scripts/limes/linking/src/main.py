@@ -3,13 +3,43 @@ import yaml
 import logging
 import subprocess
 import argparse
-from typing import Dict
+from typing import Dict, List, Tuple, Optional
+from math import ceil
+
 from sparql_query import get_top_props_cached
 from xml_builder import generate_config, load_config_template
 from align_classes import process_class_alignment
-from helper import run_limes
+from helper import run_limes, compute_cache_filename
 from merge_alignment import merge_alignments
 from nt_converter import enhance_dataset_with_same_as
+
+def split_into_chunks(items: List, chunk_index: int, num_chunks: int):
+    if num_chunks <= 1:
+        return items
+    
+    n = len(items)
+    if n == 0:
+        return items
+    
+    chunk_index = max(0, min(chunk_index, num_chunks - 1))
+    chunk_size = ceil(n / num_chunks)
+    start = chunk_index * chunk_size
+    end = min(n, start + chunk_size)
+    return items[start:end]
+
+def load_class_pairs(class_alignment_file: str) -> List[Tuple[str, str]]:
+    pairs: List[Tuple[str, str]] = []
+    with open(class_alignment_file, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split()
+            if len(parts) < 2:
+                continue
+            s_uri, t_uri = parts[0], parts[1]
+            pairs.append((s_uri, t_uri))
+    return pairs
 
 def resolve_paths(config: Dict) -> Dict:
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -25,8 +55,37 @@ def load_config(config_file: str) -> Dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description='Process source and target endpoints.')
+
+    parser.add_argument(
+        "--stage",
+        choices=["full", "class_align", "entity_align","merge_only"],
+        default="full",
+        help=(
+            "Pipeline stage to run:\n"
+            "full = do everything in one job,\n"
+            "class_align = only run class-level LIMES alignment,\n"
+            "entity_align = only run same-class entity alignment,\n"
+            "merge_only = only merge entity alignments + enhance datasets." 
+        ),
+    )
+
+    parser.add_argument(
+        "--chunk-index",
+        type=int,
+        default=0,
+        help="Index of the class-pair chunk to process (0-based).",
+    )
+
+    parser.add_argument(
+        "--num-chunks",
+        type=int,
+        default=1,
+        help="Total number of chunks the class-pairs are split into.",
+    )
+
     parser.add_argument("--source_endpoint", type=str, help="Source endpoint URL", default=None)
     parser.add_argument("--target_endpoint", type=str, help="Target endpoint URL", default=None)
+    
     args = parser.parse_args()
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -47,7 +106,7 @@ def main() -> None:
     config['endpoints']['s_endpoint'] = s_endpoint
     config['endpoints']['t_endpoint'] = t_endpoint
     config['endpoints']['s_graph'] = s_graph
-    config['endpoints'][t_graph] = t_graph
+    config['endpoints']['t_graph'] = t_graph
     
     template_file = config['file_paths']['template_file']
     config_output_dir = config['file_paths']['config_output_dir']
@@ -62,37 +121,67 @@ def main() -> None:
     s_props_list = [entry['property'] for entry in s_props_data]
     t_props_list = [entry['property'] for entry in t_props_data]
 
-    class_alignment_file = process_class_alignment(config)
+    class_alignment_file: Optional[str] = None
 
-    with open(class_alignment_file, 'r', encoding='utf-8') as f:
-      for line in f:
-        parts = line.strip().split()
-        s_uri, t_uri = parts[0], parts[1]
-        linking_config_file = generate_config(
-            s_uri, 
-            t_uri, 
-            s_graph,
-            t_graph,
-            config_output_dir, 
-            config_template, 
-            s_endpoint, 
-            t_endpoint, 
-            linking_output_dir, 
-            s_props_list, 
-            t_props_list
+    if args.stage in ("full", "class_align", "entity_align"):
+        if args.stage in ("full", "class_align"):
+            class_alignment_file = process_class_alignment(config)
+        else:
+            class_alignment_file = compute_cache_filename(
+                cache_dir,
+                s_endpoint,
+                t_endpoint,
+            )
+            if not os.path.exists(class_alignment_file):
+                raise FileNotFoundError(
+                    f"Class alignment file not found: {class_alignment_file}. "
+                    f"Run with --stage class_align first."
+                )
+            
+    if args.stage in ("full", "entity_align"):
+        assert class_alignment_file is not None
+        all_pairs = load_class_pairs(class_alignment_file)
+        logging.info(f"Total class pairs in alignment file: {len(all_pairs)}")
+
+        class_pairs_chunk = split_into_chunks(
+            all_pairs,
+            args.chunk_index,
+            args.num_chunks,
+        )
+        logging.info(
+            f"Chunk {args.chunk_index + 1}/{args.num_chunks} "
+            f"has {len(class_pairs_chunk)} class pairs"
         )
 
-        try:
-            run_limes(limes_path, linking_config_file)
-        except subprocess.CalledProcessError as e:
-            logging.error(f"LIMES process failed for config {linking_config_file}: {e}")
-        os.remove(linking_config_file)
-    
-    same_as_file = merge_alignments(linking_output_dir)
+        for s_uri, t_uri in class_pairs_chunk:
+            linking_config_file = generate_config(
+                s_uri, 
+                t_uri, 
+                s_graph,
+                t_graph,
+                config_output_dir, 
+                config_template, 
+                s_endpoint, 
+                t_endpoint, 
+                linking_output_dir, 
+                s_props_list, 
+                t_props_list
+            )
 
-    if same_as_file:
-        enhance_dataset_with_same_as(s_endpoint, same_as_file)
-        enhance_dataset_with_same_as(t_endpoint, same_as_file, 't')
+            try:
+                run_limes(limes_path, linking_config_file)
+            except subprocess.CalledProcessError as e:
+                logging.error(f"LIMES process failed for config {linking_config_file}: {e}")
+            finally:
+                if os.path.exists(linking_config_file):
+                    os.remove(linking_config_file)
+    
+    if args.stage in ("full", "merge_only"):
+        same_as_file = merge_alignments(linking_output_dir)
+
+        if same_as_file:
+            enhance_dataset_with_same_as(s_endpoint, same_as_file)
+            enhance_dataset_with_same_as(t_endpoint, same_as_file, 't')
 
 if __name__ == "__main__":
     main()
