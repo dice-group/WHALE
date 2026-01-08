@@ -3,6 +3,54 @@ import logging
 import subprocess
 import hashlib
 from rdflib.util import guess_format
+from typing import List
+
+def progress_file_for_chunk(cache_dir: str, class_alignment_file: str, chunk_index: int, num_chunks: int) -> str:
+    os.makedirs(cache_dir, exist_ok=True)
+    base = os.path.splitext(os.path.basename(class_alignment_file))[0]
+    return os.path.join(cache_dir, f"{base}.done.chunk{chunk_index:05d}_of_{num_chunks:05d}.txt")
+
+def load_done_pairs(progress_file: str) -> set[tuple[str, str]]:
+    done: set[tuple[str, str]] = set()
+    if not os.path.exists(progress_file):
+        return done
+    with open(progress_file, "r", encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split()
+            if len(parts) >= 2:
+                done.add((parts[0], parts[1]))
+    return done
+
+def append_done_pair(progress_file: str, s_uri: str, t_uri: str) -> None:
+    with open(progress_file, "a", encoding="utf-8") as f:
+        f.write(f"{s_uri}\t{t_uri}\n")
+        f.flush()
+        os.fsync(f.fileno())
+
+def classify_limes(cp) -> str:
+    out = cp.stdout or ""
+    rc = cp.returncode
+
+    if rc == 0:
+        return "ok"
+    
+    if ("NullPointerException" in out) and ("mlm" in out) and ("is null" in out) and ("getLinkSpecification" in out):
+        return "empty_ok"
+    
+    transient_markers = [
+        "502", "503", "504", "Gateway", "Bad Gateway", "Service Unavailable",
+        "SocketTimeoutException", "ConnectTimeoutException",
+        "Connection reset", "Broken pipe", "Read timed out",
+        "UnknownHostException", "ConnectException", "Connection refused",
+        "SSLHandshakeException",
+    ]
+    if any(m in out for m in transient_markers):
+        return "transient_fail"
+    
+    return "hard_fail"
 
 def get_endpoint_type(source: str) -> str:
     if os.path.exists(source) and os.path.isfile(source):
@@ -43,7 +91,7 @@ def compute_cache_filename(cache_dir: str, *args: str) -> str:
     filename = f"{hash_val}.nt"
     return os.path.join(cache_dir, filename)
 
-def run_limes(limes_jar: str, config_file: str) -> None:
+def run_limes(limes_jar: str, config_file: str) -> subprocess.CompletedProcess:
     command = [
         'java',
         '-Xmx240g',
@@ -51,8 +99,21 @@ def run_limes(limes_jar: str, config_file: str) -> None:
         '-jar', limes_jar, config_file
     ]
     logging.info(f"Running LIMES: {' '.join(command)}")
-    subprocess.run(command, check=True)
-    logging.info("LIMES process completed.")
+
+    proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+
+    out_lines: List[str] = []
+    assert proc.stdout is not None
+
+    for line in proc.stdout:
+        print(line, end="")
+        out_lines.append(line)
+
+    rc = proc.wait()
+    out = "".join(out_lines)
+
+    logging.info(f"LIMES finished with return code: {rc}")
+    return subprocess.CompletedProcess(args=command, returncode=rc, stdout=out)
 
 def run_limes_on_configs( limes_jar: str, config_dir: str) -> None:
     config_files = [

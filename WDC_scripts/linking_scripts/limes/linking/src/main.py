@@ -1,7 +1,7 @@
 import os
+import sys
 import yaml
 import logging
-import subprocess
 import argparse
 from typing import Dict, List, Tuple, Optional
 from math import ceil
@@ -9,7 +9,7 @@ from math import ceil
 from sparql_query import get_top_props_cached
 from xml_builder import generate_config, load_config_template
 from align_classes import process_class_alignment
-from helper import run_limes, compute_cache_filename
+from helper import run_limes, compute_cache_filename, progress_file_for_chunk, load_done_pairs, append_done_pair, classify_limes
 from merge_alignment import merge_alignments
 from nt_converter import enhance_dataset_with_same_as
 
@@ -95,7 +95,7 @@ def main() -> None:
     config = resolve_paths(config)
 
     logging_level = config['logging']['level']
-    logging.basicConfig(level=logging_level,format="%(asctime)s [%(levelname)s] %(message)s")
+    logging.basicConfig(level=logging_level,format="%(asctime)s [%(levelname)s] %(message)s", stream=sys.stdout,)
 
     s_endpoint = args.source_endpoint if args.source_endpoint else config['endpoints']['s_endpoint']
     t_endpoint = args.target_endpoint if args.target_endpoint else config['endpoints']['t_endpoint']
@@ -141,7 +141,7 @@ def main() -> None:
     if args.stage in ("full", "entity_align"):
         assert class_alignment_file is not None
         all_pairs = load_class_pairs(class_alignment_file)
-        logging.info(f"Total class pairs in alignment file: {len(all_pairs)}")
+        logging.info(f"Total class pairs in alignment file: {len(all_pairs)} {class_alignment_file}")
 
         class_pairs_chunk = split_into_chunks(
             all_pairs,
@@ -153,7 +153,15 @@ def main() -> None:
             f"has {len(class_pairs_chunk)} class pairs"
         )
 
+        progress_file = progress_file_for_chunk(cache_dir, class_alignment_file, args.chunk_index, args.num_chunks)
+        done_pairs = load_done_pairs(progress_file)
+        if done_pairs:
+            logging.info(f"Loaded {len(done_pairs)} done pairs from {progress_file}")
+
         for s_uri, t_uri in class_pairs_chunk:
+            if (s_uri, t_uri) in done_pairs:
+                continue
+
             linking_config_file = generate_config(
                 s_uri, 
                 t_uri, 
@@ -169,9 +177,17 @@ def main() -> None:
             )
 
             try:
-                run_limes(limes_path, linking_config_file)
-            except subprocess.CalledProcessError as e:
-                logging.error(f"LIMES process failed for config {linking_config_file}: {e}")
+                cp = run_limes(limes_path, linking_config_file)
+                status = classify_limes(cp)
+
+                if status in ("ok", "empty_ok"):
+                    append_done_pair(progress_file, s_uri, t_uri)
+                    done_pairs.add((s_uri, t_uri))
+                    logging.info(f"Marked done: {s_uri} {t_uri}")
+                else:
+                    tail = (cp.stdout or "")[-4000:]
+                    logging.error(f"LIMES failed ({status}) for {s_uri} {t_uri}. Last output:\n{tail}")
+
             finally:
                 if os.path.exists(linking_config_file):
                     os.remove(linking_config_file)
