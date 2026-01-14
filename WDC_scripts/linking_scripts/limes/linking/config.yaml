@@ -1,13 +1,13 @@
 endpoints:
-  s_endpoint: "/scratch/hpc-prf-whale/akhomich/Lamarr/datasets/ANOVA_results_GDSC1_27Oct23.nt"
-  t_endpoint: "/scratch/hpc-prf-whale/akhomich/Lamarr/datasets/GDSC1_fitted_dose_response_27Oct23.nt"
+  s_endpoint: "/scratch/hpc-prf-whale/akhomich/Lamarr/datasets/GDSC1_GDSC2_fitted_dose_response_27Oct23.nt"
+  t_endpoint: "/scratch/hpc-prf-whale/akhomich/Lamarr/datasets/Cell_Lines_Details.nt"
   s_graph: ""
   t_graph: ""
 
 file_paths:
   template_file: "/scratch/hpc-prf-whale/akhomich/WHALE/WDC_scripts/linking_scripts/limes/linking/data/templates/linking_config.xml"
   config_output_dir: "/scratch/hpc-prf-whale/akhomich/Lamarr/configs"
-  linking_output_dir: "/scratch/hpc-prf-whale/akhomich/Lamarr/linkings/1"
+  linking_output_dir: "/scratch/hpc-prf-whale/akhomich/Lamarr/linkings/8"
   cache_dir: "../data/cache"
   class_alignment_template_file: "/scratch/hpc-prf-whale/akhomich/WHALE/WDC_scripts/linking_scripts/limes/linking/data/templates/class_alignment.xml"
   query_path: "../data/queries/query_props_coverage_all.rq"
