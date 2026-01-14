@@ -54,7 +54,23 @@ def load_config(config_file: str) -> Dict:
     return config
 
 def main() -> None:
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    default_config = os.path.join(script_dir, '..', "config.yaml")
+
     parser = argparse.ArgumentParser(description='Process source and target endpoints.')
+
+    parser.add_argument(
+        "--config",
+        type=str,
+        default=default_config,
+        help=f"Path to yaml config file (default: {default_config})",
+    )
+
+    parser.add_argument(
+        "--enhance",
+        action="store_true",
+        help="Enhance datasets with owl:sameAs after merge."
+    )
 
     parser.add_argument(
         "--stage",
@@ -88,14 +104,14 @@ def main() -> None:
     
     args = parser.parse_args()
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    config_file = os.path.join(script_dir, '..', 'config.yaml')
-
+    config_file = args.config
     config = load_config(config_file)
     config = resolve_paths(config)
 
     logging_level = config['logging']['level']
     logging.basicConfig(level=logging_level,format="%(asctime)s [%(levelname)s] %(message)s", stream=sys.stdout,)
+
+    logging.info(f"Using config: {os.path.abspath(config_file)}")
 
     s_endpoint = args.source_endpoint if args.source_endpoint else config['endpoints']['s_endpoint']
     t_endpoint = args.target_endpoint if args.target_endpoint else config['endpoints']['t_endpoint']
@@ -158,6 +174,9 @@ def main() -> None:
         if done_pairs:
             logging.info(f"Loaded {len(done_pairs)} done pairs from {progress_file}")
 
+        total_in_chunk = len(class_pairs_chunk)
+        failed = 0
+
         for s_uri, t_uri in class_pairs_chunk:
             if (s_uri, t_uri) in done_pairs:
                 continue
@@ -185,17 +204,20 @@ def main() -> None:
                     done_pairs.add((s_uri, t_uri))
                     logging.info(f"Marked done: {s_uri} {t_uri}")
                 else:
+                    failed += 1
                     tail = (cp.stdout or "")[-4000:]
                     logging.error(f"LIMES failed ({status}) for {s_uri} {t_uri}. Last output:\n{tail}")
 
             finally:
                 if os.path.exists(linking_config_file):
                     os.remove(linking_config_file)
+
+        logging.info(f"Failed pairs: {failed}/{total_in_chunk}")
     
     if args.stage in ("full", "merge_only"):
         same_as_file = merge_alignments(linking_output_dir)
 
-        if same_as_file:
+        if args.enhance:
             enhance_dataset_with_same_as(s_endpoint, same_as_file)
             enhance_dataset_with_same_as(t_endpoint, same_as_file, 't')
 

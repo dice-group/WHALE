@@ -48,7 +48,7 @@ def find_missing_class_decls_nt(input_path: str) -> Set[URIRef]:
 def write_class_decls_with_labels_nt(classes: Set[URIRef], out_stream, lang: str):
     for c in sorted(classes, key=str):
         label = local_name(str(c))
-        out_stream.write(f"<{c}> <{RDF.type} {OWL.Class}> .\n")
+        out_stream.write(f"<{c}> <{RDF.type}> <{OWL.Class}> .\n")
         lit = Literal(label, lang=lang).n3()
         out_stream.write(f"<{c}> <{RDFS.label}> {lit} .\n")
 

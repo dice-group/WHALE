@@ -1,17 +1,17 @@
 endpoints:
-  s_endpoint: "https://dbpedia.org/sparql"
-  t_endpoint: "https://wikidata.data.dice-research.org/sparql"
-  s_graph: "http://dbpedia.org"
+  s_endpoint: "/scratch/hpc-prf-whale/akhomich/Lamarr/datasets/ANOVA_results_GDSC1_27Oct23.nt"
+  t_endpoint: "/scratch/hpc-prf-whale/akhomich/Lamarr/datasets/GDSC1_fitted_dose_response_27Oct23.nt"
+  s_graph: ""
   t_graph: ""
 
 file_paths:
-  template_file: "../data/templates/dbpedia_wikidata_linking.xml"
-  config_output_dir: "../../../../../LIMES/configs/dbpedia_wiki"
-  linking_output_dir: "../../../../../Alignment/procrustes/limes/dbpedia_wiki"
+  template_file: "/scratch/hpc-prf-whale/akhomich/WHALE/WDC_scripts/linking_scripts/limes/linking/data/templates/linking_config.xml"
+  config_output_dir: "/scratch/hpc-prf-whale/akhomich/Lamarr/configs"
+  linking_output_dir: "/scratch/hpc-prf-whale/akhomich/Lamarr/linkings/1"
   cache_dir: "../data/cache"
-  class_alignment_template_file: "../data/templates/dbpedia_wikidata.xml"
+  class_alignment_template_file: "/scratch/hpc-prf-whale/akhomich/WHALE/WDC_scripts/linking_scripts/limes/linking/data/templates/class_alignment.xml"
   query_path: "../data/queries/query_props_coverage_all.rq"
-  limes_jar: "/scratch/hpc-prf-whale/albert/limes_custom/limes_custom/limes-core/target/limes-core-1.8.1-SNAPSHOT-shaded.jar"
+  limes_jar: "/scratch/hpc-prf-whale/akhomich/limes_core/limes-core-1.8.1-SNAPSHOT-shaded.jar"
 
 logging:
   level: "INFO"
