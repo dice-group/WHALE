@@ -122,7 +122,7 @@ def rewrite_nt(in_path: str, out_path: str, mapping: dict[str, str]):
             fout.write(out)
 
 def main():
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(description="Merges datasets based on sameAs links.")
     ap.add_argument("--links", required=True, help="TSV: <u1>\\t<u2>\\tconfidence")
     ap.add_argument("--conf", type=float, default=0.7, help="confidence threshold")
     ap.add_argument("--out-mapping", default=None, help="output mapping: old\tcanonical")
