@@ -1,10 +1,9 @@
 import argparse
 import re
-import sys
-from typing import Set
+from typing import Set, TextIO
 from urllib.parse import unquote
 
-from rdflib import Graph, URIRef, Literal
+from rdflib import Literal
 from rdflib.namespace import RDF, RDFS, OWL
 
 def local_name(iri: str) -> str:
@@ -24,33 +23,57 @@ def local_name(iri: str) -> str:
 
     return s or "class"
 
-def find_missing_class_decls_nt(input_path: str) -> Set[URIRef]:
-    g = Graph()
-    g.parse(input_path, format="nt")
+def _open_nt(path: str) -> TextIO:
+    return open(path, "r", encoding="utf-8", errors="replace")
 
-    used_as_type: Set[URIRef] = set()
-    declared: Set[URIRef] = set()
+def find_missing_class_decls_nt_streaming(input_path: str) -> Set[str]:
+    rdf_type = f"<{str(RDF.type)}>"
+    owl_class = f"<{str(OWL.Class)}>"
+    rdfs_class = f"<{str(RDFS.Class)}>"
 
-    for _, _, o in g.triples((None, RDF.type, None)):
-        if isinstance(o, URIRef):
-            used_as_type.add(o)
+    used_as_type: Set[str] = set()
+    declared: Set[str] = set()
 
-    for s, _, _ in g.triples((None, RDF.type, OWL.Class)):
-        if isinstance(s, URIRef):
-            declared.add(s)
+    with _open_nt(input_path) as f:
+        for line in f:
+            if rdf_type not in line:
+                continue
 
-    for s, _, _ in g.triples((None, RDF.type, RDFS.Class)):
-        if isinstance(s, URIRef):
-            declared.add(s)
+            line = line.strip()
+            if not line or line[0] == "#":
+                continue
+
+            parts = line.split()
+            if len(parts) < 4:
+                continue
+
+            s_tok, p_tok, o_tok = parts[0], parts[1], parts[2]
+            if p_tok != rdf_type:
+                continue
+
+            if not (o_tok.startswith("<") and o_tok.endswith(">")):
+                continue
+
+            o_iri = o_tok[1:-1]
+            used_as_type.add(o_iri)
+
+            if o_tok == owl_class or o_tok == rdfs_class:
+                if s_tok.startswith("<") and s_tok.endswith(">"):
+                    s_iri = s_tok[1:-1]
+                    declared.add(s_iri)
 
     return used_as_type - declared
 
-def write_class_decls_with_labels_nt(classes: Set[URIRef], out_stream, lang: str):
-    for c in sorted(classes, key=str):
+def write_class_decls_with_labels_nt(classes: Set[str], out_stream, lang: str):
+    rdf_type_iri = str(RDF.type)
+    owl_class_iri = str(OWL.Class)
+    rdfs_label_iri = str(RDFS.label)
+    
+    for c in sorted(classes):
         label = local_name(str(c))
-        out_stream.write(f"<{c}> <{RDF.type}> <{OWL.Class}> .\n")
+        out_stream.write(f"<{c}> <{rdf_type_iri}> <{owl_class_iri}> .\n")
         lit = Literal(label, lang=lang).n3()
-        out_stream.write(f"<{c}> <{RDFS.label}> {lit} .\n")
+        out_stream.write(f"<{c}> <{rdfs_label_iri}> {lit} .\n")
 
 def main():
     ap = argparse.ArgumentParser(
@@ -60,7 +83,7 @@ def main():
     ap.add_argument("--out", dest="out", required=True, help="Save declaration file separately.")
     args = ap.parse_args()
 
-    missing = find_missing_class_decls_nt(args.inp)
+    missing = find_missing_class_decls_nt_streaming(args.inp)
 
     with open(args.out, "w", encoding="utf-8") as f:
         write_class_decls_with_labels_nt(missing, f, lang="en")
