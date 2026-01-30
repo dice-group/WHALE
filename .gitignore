@@ -184,6 +184,7 @@ wikidata_classes.nt
 *.nq
 *.sh
 !statistics.sh
+!different_rows.sh
 !WDC_scripts/linking_scripts/limes/extract_configs_with_props_use_limes.sh
 
 WDC_scripts/linking_scripts/limes/datasets/

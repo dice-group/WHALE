@@ -39,7 +39,7 @@
   </MLALGORITHM>
   
   <ACCEPTANCE>
-    <THRESHOLD>0.7</THRESHOLD>
+    <THRESHOLD>0.85</THRESHOLD>
     <FILE>{linking_output_dir}/{s_cls}_{t_cls}_same_as.nt</FILE>
     <RELATION>owl:sameAs</RELATION>
   </ACCEPTANCE>
