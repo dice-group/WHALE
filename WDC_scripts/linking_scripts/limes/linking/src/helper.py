@@ -91,10 +91,12 @@ def compute_cache_filename(cache_dir: str, *args: str) -> str:
     filename = f"{hash_val}.nt"
     return os.path.join(cache_dir, filename)
 
-def run_limes(limes_jar: str, config_file: str) -> subprocess.CompletedProcess:
+def run_limes(limes_jar: str, config_file: str, heap_size: str) -> subprocess.CompletedProcess:
+    heap_size = heap_size
+
     command = [
         'java',
-        '-Xmx240g',
+        f'-Xmx{heap_size}',
         "-XX:+UseG1GC",
         '-jar', limes_jar, config_file
     ]
@@ -115,7 +117,7 @@ def run_limes(limes_jar: str, config_file: str) -> subprocess.CompletedProcess:
     logging.info(f"LIMES finished with return code: {rc}")
     return subprocess.CompletedProcess(args=command, returncode=rc, stdout=out)
 
-def run_limes_on_configs( limes_jar: str, config_dir: str) -> None:
+def run_limes_on_configs( limes_jar: str, config_dir: str, heap_size: str) -> None:
     config_files = [
         os.path.join(config_dir, f)
         for f in os.listdir(config_dir)
@@ -125,5 +127,5 @@ def run_limes_on_configs( limes_jar: str, config_dir: str) -> None:
     logging.info(f"Found {len(config_files)} config files in {config_dir}")
 
     for config_file in config_files:
-        run_limes(limes_jar, config_file)
+        run_limes(limes_jar, config_file, heap_size=heap_size)
         

@@ -13,5 +13,8 @@ file_paths:
   query_path: "../data/queries/query_props_coverage_all.rq"
   limes_jar: "/scratch/hpc-prf-whale/akhomich/limes_core/limes-core-1.8.1-SNAPSHOT-shaded.jar"
 
+jvm:
+  heap_size: "850g"
+
 logging:
   level: "INFO"

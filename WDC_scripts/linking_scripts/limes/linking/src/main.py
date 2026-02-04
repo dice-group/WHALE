@@ -196,7 +196,8 @@ def main() -> None:
             )
 
             try:
-                cp = run_limes(limes_path, linking_config_file)
+                heap_size = config['jvm']['heap_size']
+                cp = run_limes(limes_path, linking_config_file, heap_size)
                 status = classify_limes(cp)
 
                 if status in ("ok", "empty_ok"):
