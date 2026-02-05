@@ -54,8 +54,9 @@ def process_class_alignment(config: Dict) -> str:
         generate_alignment_config_file(config, temp_config_file, cache_file)
 
         limes_jar = config['file_paths']['limes_jar']
+        heap_size = config['jvm']['heap_size']
         try:
-            run_limes(limes_jar, temp_config_file)
+            run_limes(limes_jar, temp_config_file, heap_size=heap_size)
         except Exception as e:
             logging.error(f"LIMES process failed: {e}")
             raise
