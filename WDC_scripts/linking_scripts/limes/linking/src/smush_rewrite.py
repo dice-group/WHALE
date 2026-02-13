@@ -1,5 +1,14 @@
 import argparse
+import os
+import subprocess
 from collections import defaultdict
+
+def dedup_file_sort_u(path_in: str, path_out: str, parallel: int = 8, mem: str = "50%"):
+    env = dict(os.environ)
+    env["LC_ALL"] = "C"
+    cmd = ["sort", "-S", mem, f"--parallel={parallel}", "-u", path_in]
+    with open(path_out, "w", encoding="utf-8") as fout:
+        subprocess.run(cmd, stdout=fout, check=True, env=env)
 
 def parse_uri(token: str) -> str | None:
     token = token.strip()
@@ -145,6 +154,11 @@ def main():
             base = os.path.basename(in_file)
             out_file = os.path.join(args.out_dir, base)
             rewrite_nt(in_file, out_file, mapping)
+
+            tmp = out_file + ".tmp"
+            os.replace(out_file, tmp)
+            dedup_file_sort_u(tmp, out_file)
+            os.remove(tmp)
 
 if __name__ == "__main__":
     main()
