@@ -7,7 +7,7 @@ import time
 from typing import Optional, Tuple
 
 RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
-RDFS_LABEL = "http://www.w3.org/2000/01/rdf-schema#label"
+DEFAULT_LABEL_PREDICATE = "http://www.w3.org/2000/01/rdf-schema#label"
 DEFAULT_TYPE_URI = "http://schema.org/Observation"
 
 def parse_uri(token: str) -> Optional[str]:
@@ -109,11 +109,16 @@ def setup_db(db_path: str, table: str) -> sqlite3.Connection:
 def fmt_gb(nbytes: int) -> str:
     return f"{nbytes / (1024**3):.2f} GB"
 
+def br(u: str) -> str:
+    """Wrap a raw URI as an N-Triples-style token."""
+    return f"<{u}>"
+
 def ingest(
     nt_path: str,
     conn: sqlite3.Connection,
     table: str,
     type_uri: str,
+    label_predicate: str,
     commit_every: int = 200000,
     progress_every_s: int = 5,
 ) -> None:
@@ -148,7 +153,7 @@ def ingest(
                 )
                 n_relevant += 1
 
-            elif p == RDFS_LABEL:
+            elif p == label_predicate:
                 # only updates if uri already in table
                 cur.execute(
                     f"UPDATE {table} SET label = COALESCE(label, ?) WHERE uri = ?",
@@ -167,7 +172,6 @@ def ingest(
                 pct = (read_bytes / total_bytes * 100.0) if total_bytes else 0.0
                 mb_s = (read_bytes / (1024**2)) / elapsed if elapsed > 0 else 0.0
                 remaining_bytes = max(total_bytes - read_bytes, 0)
-                # rough ETA based on bytes/s
                 eta_s = (remaining_bytes / (mb_s * 1024**2)) if mb_s > 0 else 0.0
 
                 print(
@@ -190,6 +194,9 @@ def emit_pairs(conn: sqlite3.Connection, table: str, out_path: str, mode: str = 
     mode:
       - canonical: for each label group, pick smallest uri as canonical and pair it with others
       - allpairs: emit all unique unordered pairs in the group
+
+    Output TSV uses <...> wrapped URIs:
+      <uri1>\t<uri2>\t1.0
     """
     cur = conn.cursor()
     cur.execute(f"""
@@ -212,22 +219,27 @@ def emit_pairs(conn: sqlite3.Connection, table: str, out_path: str, mode: str = 
             if mode == "allpairs":
                 for i in range(len(uris)):
                     for j in range(i + 1, len(uris)):
-                        out.write(f"{uris[i]}\t{uris[j]}\t1.0\n")
+                        out.write(f"{br(uris[i])}\t{br(uris[j])}\t1.0\n")
             else:
                 canon = uris[0]
                 for u in uris[1:]:
-                    out.write(f"{canon}\t{u}\t1.0\n")
+                    out.write(f"{br(canon)}\t{br(u)}\t1.0\n")
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--input", required=True, help="Path to .nt file (60GB ok)")
     ap.add_argument("--db", default="labels.sqlite", help="SQLite DB path")
-    ap.add_argument("--out", required=True, help="Output TSV: uri1\\turi2\\t1.0")
+    ap.add_argument("--out", required=True, help="Output TSV: <uri1>\\t<uri2>\\t1.0")
 
     ap.add_argument(
         "--type-uri",
         default=DEFAULT_TYPE_URI,
         help=f"RDF type URI to match (default: {DEFAULT_TYPE_URI})",
+    )
+    ap.add_argument(
+        "--label-predicate",
+        default=DEFAULT_LABEL_PREDICATE,
+        help=f"Predicate URI used as label (default: {DEFAULT_LABEL_PREDICATE})",
     )
     ap.add_argument(
         "--table",
@@ -247,6 +259,7 @@ def main():
         conn,
         table=args.table,
         type_uri=args.type_uri,
+        label_predicate=args.label_predicate,
         commit_every=args.commit_every,
         progress_every_s=args.progress_every_s,
     )
