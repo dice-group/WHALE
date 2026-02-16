@@ -19,8 +19,11 @@ def parse_uri(token: str) -> Optional[str]:
 def parse_nt_literal(token: str) -> Optional[str]:
     """
     Parses an N-Triples literal token and returns a normalized string key.
-    Keeps lexical form + optional language/datatype so that:
-      "x"@en != "x"@de and "1"^^<dt> differs too.
+
+    Normalization:
+      - drops language tags:  "x"@en  -> "x"
+      - keeps datatype:       "1"^^<dt> stays "1"^^<dt>
+
     Returns None if token isn't a literal.
     """
     t = token.strip()
@@ -39,9 +42,15 @@ def parse_nt_literal(token: str) -> Optional[str]:
             elif c == '"':
                 lex = t[: i + 1]          # include quotes
                 rest = t[i + 1 :].strip() # @lang or ^^<datatype> or empty
+
+                # DROP language tag, KEEP datatype
+                if rest.startswith("@"):
+                    rest = ""
+                # (else: keep ^^<...> or empty)
                 return lex + rest
         i += 1
     return None
+
 
 def parse_nt_line(line: str) -> Optional[Tuple[str, str, str]]:
     """
