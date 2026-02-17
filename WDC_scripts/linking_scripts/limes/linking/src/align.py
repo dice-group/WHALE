@@ -4,7 +4,7 @@ import os
 import sqlite3
 import sys
 import time
-from typing import Optional, Tuple
+from typing import Optional, Set, Tuple
 
 RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
 DEFAULT_LABEL_PREDICATE = "http://www.w3.org/2000/01/rdf-schema#label"
@@ -22,10 +22,41 @@ def parse_nt_literal(token: str) -> Optional[str]:
 
     Normalization:
       - drops language tags:  "x"@en  -> "x"
+      - lowercases lexical form: "Hello" -> "hello"
       - keeps datatype:       "1"^^<dt> stays "1"^^<dt>
 
     Returns None if token isn't a literal.
     """
+    def lowercase_lex(lex: str) -> str:
+        # Lowercase only literal characters; keep N-Triples escapes intact.
+        if len(lex) < 2 or lex[0] != '"' or lex[-1] != '"':
+            return lex
+        out = ['"']
+        i = 1
+        end = len(lex) - 1
+        while i < end:
+            c = lex[i]
+            if c == "\\" and i + 1 < end:
+                esc = lex[i + 1]
+                out.append(c)
+                out.append(esc)
+                i += 2
+                if esc == "u":
+                    for _ in range(4):
+                        if i < end:
+                            out.append(lex[i])
+                            i += 1
+                elif esc == "U":
+                    for _ in range(8):
+                        if i < end:
+                            out.append(lex[i])
+                            i += 1
+                continue
+            out.append(c.lower())
+            i += 1
+        out.append('"')
+        return "".join(out)
+
     t = token.strip()
     if not t.startswith('"'):
         return None
@@ -47,7 +78,7 @@ def parse_nt_literal(token: str) -> Optional[str]:
                 if rest.startswith("@"):
                     rest = ""
                 # (else: keep ^^<...> or empty)
-                return lex + rest
+                return lowercase_lex(lex) + rest
         i += 1
     return None
 
@@ -126,7 +157,7 @@ def ingest(
     nt_path: str,
     conn: sqlite3.Connection,
     table: str,
-    type_uri: str,
+    type_uris: Set[str],
     label_predicate: str,
     commit_every: int = 200000,
     progress_every_s: int = 5,
@@ -155,7 +186,7 @@ def ingest(
             s, p, o = t
 
             # handle relevant triples
-            if p == RDF_TYPE and o == type_uri:
+            if p == RDF_TYPE and o in type_uris:
                 cur.execute(
                     f"INSERT OR IGNORE INTO {table}(uri, label) VALUES (?, NULL)",
                     (s,),
@@ -242,8 +273,13 @@ def main():
 
     ap.add_argument(
         "--type-uri",
-        default=DEFAULT_TYPE_URI,
-        help=f"RDF type URI to match (default: {DEFAULT_TYPE_URI})",
+        action="append",
+        dest="type_uris",
+        help=(
+            "RDF type URI to match. Repeat this option to include multiple types, "
+            f'e.g. --type-uri "http://schema.org/Observation" --type-uri "http://schema.org/Place". '
+            f"If not provided, defaults to {DEFAULT_TYPE_URI}"
+        ),
     )
     ap.add_argument(
         "--label-predicate",
@@ -261,13 +297,14 @@ def main():
     ap.add_argument("--progress-every-s", type=int, default=5)
 
     args = ap.parse_args()
+    type_uris = set(args.type_uris) if args.type_uris else {DEFAULT_TYPE_URI}
 
     conn = setup_db(args.db, args.table)
     ingest(
         args.input,
         conn,
         table=args.table,
-        type_uri=args.type_uri,
+        type_uris=type_uris,
         label_predicate=args.label_predicate,
         commit_every=args.commit_every,
         progress_every_s=args.progress_every_s,
