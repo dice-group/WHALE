@@ -19,7 +19,7 @@ dataclasses-json==0.6.3
 docdata==0.0.3
 exceptiongroup==1.2.0
 fastapi==0.109.1
-filelock==3.13.1
+filelock==3.20.3
 fonttools==4.53.1
 frozenlist==1.4.1
 fsspec==2023.12.2
