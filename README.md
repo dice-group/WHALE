@@ -71,8 +71,8 @@ Contributions to WHALE are welcome! To contribute:
 
 WHALE is released under the [MIT License](LICENSE). -->
 
-## Acknowledgements
+<!-- ## Acknowledgements
 
-WHALE is supported by the Lamarr Fellowship and developed at Paderborn University by Prof. Dr. Axel Ngonga and his team. The project also collaborates with the Lamarr Network and various other academic and research institutions.
+WHALE is supported by the Lamarr Fellowship and developed at Paderborn University by Prof. Dr. Axel Ngonga and his team. -->
 
 For any inquiries or support, please contact the maintainers at [sshivam@mail.uni-paderborn.de](mailto:sshivam@mail.uni-paderborn.de).
