@@ -1,0 +1,24 @@
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+
+SELECT ?p 
+       (COUNT(DISTINCT ?r) AS ?count)
+       (100 * COUNT(DISTINCT ?r) / ?totalCount AS ?coverage)
+WHERE {
+  {
+    SELECT (COUNT(DISTINCT ?totalR) AS ?totalCount)
+    WHERE {
+      ?totalR ?p ?o .
+      FILTER (isLiteral(?o))
+      filter exists { ?totalR rdf:type ?anyClass}
+    }
+  }
+
+  ?r ?p ?o .
+  FILTER (isLiteral(?o))
+  filter exists { ?r rdf:type ?anyClass}
+}
+GROUP BY ?p ?totalCount
+ORDER BY DESC(?coverage)
+limit 10

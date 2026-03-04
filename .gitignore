@@ -58,6 +58,9 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+cache/
+WDC_scripts/linking_scripts/AML/AML_v3.2/data
+WDC_scripts/linking_scripts/AML/AML_v3.2/logs
 
 # Translations
 *.mo
@@ -175,4 +178,21 @@ knowledge_graph.nt
 wikidata_classes_by_language.csv
 wikidata_classes.nt
 *.xml
+!WDC_scripts/linking_scripts/limes/linking/data/templates/*.xml
 *.nt
+*.rdf
+*.nq
+*.sh
+!WDC_scripts/linking_scripts/limes/extract_configs_with_props_use_limes.sh
+
+WDC_scripts/linking_scripts/limes/datasets/
+Test_dataset/
+*.json
+checkpoints/
+Experiments/
+ISWC Paper/11164-Article Text-14692-1-2-20201228.pdf
+ISWC Paper/D1 workflow.png
+ISWC Paper/D2 workflow.png
+ISWC Paper/Domains with triples.png
+ISWC Paper/Embeddings.cc requirements.txt
+ISWC Paper/WHALE_ISWC_Embeddings.pdf
