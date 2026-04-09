@@ -3,7 +3,6 @@ import random
 from pathlib import Path
 from pyexpat import model
 import numpy as np
-from sklearn.metrics import roc_auc_score, average_precision_score
 import pandas as pd
 import torch
 import torch.nn.functional as F
@@ -26,27 +25,11 @@ from modules.models.fine_tune import fine_tune_kvsall
 import types
 import modules.models.train as train_mod
 
-
-# === Data loader ===
-from modules.data_loader import (
-     normalize_embedding_space,load_triples, load_triples_from_files,load_parquet_triples
-)
-
 # --- Model imports ---
 from modules.models.base import SharedSpaceAlignmentNN
 
 # --- Evaluation imports ---
 from modules.eval.Entity_alignment import test
-
-
-def load_oenea_triples(path):
-    triples = []
-    with open(path, "r", encoding="utf8") as f:
-        for line in f:
-            h, r, t = line.strip().split('\t')
-            triples.append((h, r, t))
-    return triples
-
 
 
 def train_alignment_model(
@@ -59,7 +42,6 @@ def train_alignment_model(
     directory_1=None,
     S_test_keys=None, T_test_keys=None, test_triples_path=None
 ):
-    
 
     G = build_merged_graph(kg_1, kg_2)
 
@@ -71,16 +53,27 @@ def train_alignment_model(
         
     id2ent = {i: e for e, i in G.entity2id.items()}
 
+    def normalize(ent):
+        return ent.strip().replace("'", "")
 
     E_list = []
+    missing = []
+
     for i in range(len(id2ent)):
         ent = id2ent[i]
-        if ent in entity_embeddings1.index:
-            E_list.append(entity_embeddings1.loc[ent].values)
-        else:
-            E_list.append(entity_embeddings2.loc[ent].values)
+        ent_clean = normalize(ent)
 
-    E = torch.tensor(E_list)
+        if ent_clean in entity_embeddings1.index:
+            E_list.append(entity_embeddings1.loc[ent_clean].values)
+        elif ent_clean in entity_embeddings2.index:
+            E_list.append(entity_embeddings2.loc[ent_clean].values)
+        else:
+            missing.append(ent)
+            E_list.append(np.zeros(entity_embeddings1.shape[1]))
+
+    print(f"Missing entities: {len(missing)}")
+
+    E = torch.tensor(np.array(E_list), dtype=torch.float32)
 
     idx_map = G.entity2id
 
@@ -146,14 +139,13 @@ def train_alignment_model(
                 S_align,
                 T_align,
                 margin=0.8,
-                k=32
+                k=5
             )
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-            # accumulate epoch stats
             total_loss += loss.item()
             sum_pos += float(pos)
             sum_neg += float(neg)
@@ -170,6 +162,7 @@ def train_alignment_model(
         with torch.no_grad():
 
             b_probe = torch.randperm(len(S_idx), device=S_idx.device)[:512]
+            print("Train pairs:", len(S_idx))
             Sb_p = S_idx[b_probe]
             Tb_p = T_idx[b_probe]
 
@@ -188,7 +181,7 @@ def train_alignment_model(
             off_mean = ((sim.sum() - sim.diag().sum()) / (sim.numel() - sim.size(0))).item()
             print(f"[PROBE {epoch}] pos_mean={pos_mean:.4f} offdiag_mean={off_mean:.4f}")
 
-            # ---- full train embeddings for EA evaluation ----
+ 
             H_train = rgcn(E, G.adj_lists)
             Hs_t = H_train[S_idx]
             Ht_t = H_train[T_idx]
@@ -217,7 +210,6 @@ def train_alignment_model(
         )
 
         
-        # save train log
         train_logs.append({
             "epoch": epoch,
             "loss": loss.item(),
@@ -306,27 +298,34 @@ def train_alignment_model(
     fusion.eval()
     rgcn.eval()
 
-    # --------------------------------------------
-    # Prepare S_test and T_test embeddings
-    # (use SAME merged graph ordering)
-    # --------------------------------------------
-    S_test_idx = torch.tensor([G.entity2id[u] for u in S_test_keys]).long()
-    T_test_idx = torch.tensor([G.entity2id[v] for v in T_test_keys]).long()
 
-    E_test = E  
+    if S_test_keys is not None and len(S_test_keys) > 0:
+        S_test_idx = torch.tensor([G.entity2id[u] for u in S_test_keys]).long()
+        T_test_idx = torch.tensor([G.entity2id[v] for v in T_test_keys]).long()
+    else:
+        print("No test alignment pairs → skipping test indexing")
+        S_test_idx = None
+        T_test_idx = None
 
-    with torch.no_grad():
+    S_test_aligned = None
+    T_test_aligned = None
 
-        H_test = rgcn(E_test, G.adj_lists)
+    if S_test_idx is not None:
+        E_test = E  
 
-        Hs_test = H_test[S_test_idx]
-        Ht_test = H_test[T_test_idx]
-        
-        S_test_fused = fusion(E_test[S_test_idx], Hs_test)
-        T_test_fused = fusion(E_test[T_test_idx], Ht_test)
-        
-        S_test_aligned = proposer(S_test_fused)
-        T_test_aligned = proposer(T_test_fused)
+        with torch.no_grad():
+            H_test = rgcn(E_test, G.adj_lists)
+
+            Hs_test = H_test[S_test_idx]
+            Ht_test = H_test[T_test_idx]
+            
+            S_test_fused = fusion(E_test[S_test_idx], Hs_test)
+            T_test_fused = fusion(E_test[T_test_idx], Ht_test)
+            
+            S_test_aligned = proposer(S_test_fused)
+            T_test_aligned = proposer(T_test_fused)
+    else:
+        print("Skipping test embedding computation")
         
     # --------------------------------------------
     # Build aligned embeddings for ALL entities
@@ -340,7 +339,6 @@ def train_alignment_model(
     aligned_entities_all = aligned_all.cpu().numpy()
     entity_order = [id2ent[i] for i in range(len(id2ent))]
 
-    # Attach URIs
     aligned_entities_all = aligned_entities_all[:len(entity_order)]
     aligned_df = pd.DataFrame(aligned_entities_all, index=entity_order)
     print("aligned embeddings:", aligned_entities_all.shape)
@@ -348,52 +346,58 @@ def train_alignment_model(
 
     aligned_df_no_fr = aligned_df.drop(index=T_train_keys, errors="ignore")
     aligned_entities_filtered = aligned_df_no_fr.values
-
-    S_eval = S_test_aligned.cpu().numpy()
-    T_eval = T_test_aligned.cpu().numpy()
-
-    # --------------------------------------------
-    #  Evaluate entity alignment
-    # --------------------------------------------
-    alignment_result, hits_at_k, mean_rank, mrr = test(
-        embeds1=S_eval,
-        embeds2=T_eval,
-        mapping=None,
-        top_k=[1, 5, 10, 50],
-        threads_num=1,
-        metric='cosine',
-        normalize=True
-    )
-
-    print(f"\n[Final Test Alignment Results]")
-    print(f"Pairs used: {len(S_test_keys)}")
-    print(f"Hits@1:  {hits_at_k[0]:.4f}")
-    print(f"Hits@5:  {hits_at_k[1]:.4f}")
-    print(f"Hits@10: {hits_at_k[2]:.4f}")
-    print(f"Hits@50: {hits_at_k[3]:.4f}")
-    print(f"MR:      {mean_rank:.2f}")
-    print(f"MRR:     {mrr:.4f}")
     
-    test_results = {
-        "pairs_used": len(S_test_keys),
-        "hits1": hits_at_k[0],
-        "hits5": hits_at_k[1],
-        "hits10": hits_at_k[2],
-        "hits50": hits_at_k[3],
-        "mr": mean_rank,
-        "mrr": mrr
-    }
+    test_results = None
 
+    if S_test_aligned is not None:
+        S_eval = S_test_aligned.cpu().numpy()
+        T_eval = T_test_aligned.cpu().numpy()
 
-    with open(os.path.join(output_dir, "test_metrics.json"), "w") as f:
-        json.dump(test_results, f, indent=4)
+        alignment_result, hits_at_k, mean_rank, mrr = test(
+            embeds1=S_eval,
+            embeds2=T_eval,
+            mapping=None,
+            top_k=[1, 5, 10, 50],
+            threads_num=1,
+            metric='cosine',
+            normalize=True
+        )
 
-    pd.DataFrame([test_results]).to_csv(
-        os.path.join(output_dir, "test_metrics.csv"),
-        index=False
-    )
+        print(f"\n[Final Test Alignment Results]")
+        print(f"Pairs used: {len(S_test_keys)}")
+        print(f"Hits@1:  {hits_at_k[0]:.4f}")
+        print(f"Hits@5:  {hits_at_k[1]:.4f}")
+        print(f"Hits@10: {hits_at_k[2]:.4f}")
+        print(f"Hits@50: {hits_at_k[3]:.4f}")
+        print(f"MR:      {mean_rank:.2f}")
+        print(f"MRR:     {mrr:.4f}")
+        
+        test_results = {
+            "pairs_used": len(S_test_keys),
+            "hits1": hits_at_k[0],
+            "hits5": hits_at_k[1],
+            "hits10": hits_at_k[2],
+            "hits50": hits_at_k[3],
+            "mr": mean_rank,
+            "mrr": mrr
+        }
 
-    print(f"Saved test metrics to {output_dir}")
+    else:
+        print(" Skipping final test evaluation (no test pairs)")
+
+    
+    if test_results is not None:
+        with open(os.path.join(output_dir, "test_metrics.json"), "w") as f:
+            json.dump(test_results, f, indent=4)
+
+        pd.DataFrame([test_results]).to_csv(
+            os.path.join(output_dir, "test_metrics.csv"),
+            index=False
+        )
+
+        print(f"Saved test metrics to {output_dir}")
+    else:
+        print("No test results to save.")
 
 
     # ===== fine-tuning =====
@@ -420,10 +424,8 @@ def train_alignment_model(
     except NameError:
         test_triples_path = None
 
-    # Use only a small subset of triples for testing
-    random.shuffle(triples_batch)
-    triples_batch_small = triples_batch[:60000]
-    # Now proceed based on availability
+
+    safe_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if test_triples_path and os.path.exists(test_triples_path):
         print("\n[Test triples found — proceeding with fine-tuning and link prediction evaluation]")
         try:
@@ -431,12 +433,12 @@ def train_alignment_model(
                 model=model,
                 aligned_entity_embeddings=aligned_entities_filtered,
                 aligned_relation_embeddings=aligned_relation_embeddings                                                         ,
-                triples_batch=triples_batch_small,
+                triples_batch=triples_batch,
                 val_triples=val_triples,
                 train_triples=train_triples,
                 entity_to_idx=entity_to_idx_aligned,
                 relation_to_idx=relation_to_idx_aligned,
-                device=device,
+                device=safe_device,
                 output_dir=output_dir,
                 batch_size=256,
                 epochs=20,

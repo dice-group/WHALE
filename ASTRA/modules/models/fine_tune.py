@@ -1,4 +1,5 @@
 import torch
+import pandas as pd
 import os, json, random, pickle, logging
 import sys
 from tqdm import tqdm
@@ -140,13 +141,7 @@ def fine_tune_kvsall(
 
 
     model.train()
-    random.shuffle(triples_batch)
-    n = len(triples_batch)
-    batch_1 = triples_batch[:n//3]
-    batch_2 = triples_batch[n//3:2*n//3]
-    batch_3 = triples_batch[2*n//3:]
-    
-
+   
     print("Trainable params now:")
     for name, param in model.named_parameters():
         if param.requires_grad:
@@ -162,13 +157,24 @@ def fine_tune_kvsall(
         param_groups.append({"params": model.q_coefficients.parameters(), "lr": lr * 5.0})
     optimizer = torch.optim.Adam(param_groups, weight_decay=0.0)
     
-    sample_new_triples = False
+    # Step 1: sample 20% from FULL dataset
     def get_sample_size(data, ratio=0.2):
         return max(1, int(len(data) * ratio))
-    
+
     sample_size = get_sample_size(triples_batch)
 
-    encoded_triples = sample_encoded_triples(triples_batch, entity_to_idx, relation_to_idx, sample_size=sample_size)
+    sampled_data = random.sample(triples_batch, sample_size)
+
+    print(f"Using {len(sampled_data)} / {len(triples_batch)} triples (20%)")
+
+    # Step 2: split sampled data into 3 batches
+    n = len(sampled_data)
+
+    batch_1 = sampled_data[:n//3]
+    batch_2 = sampled_data[n//3:2*n//3]
+    batch_3 = sampled_data[2*n//3:]
+
+    # Training loop
     for epoch in range(epochs):
         if epoch < 10:
             current_batch = batch_1
@@ -176,15 +182,17 @@ def fine_tune_kvsall(
             current_batch = batch_2
         else:
             current_batch = batch_3
-        if epoch==10:
-            sample_new_triples=True
-        elif epoch==20:
-            sample_new_triples=True
-        if sample_new_triples:
-            sample_size = get_sample_size(current_batch)
-            encoded_triples = sample_encoded_triples(current_batch, entity_to_idx, relation_to_idx, sample_size=sample_size)
-            sample_new_triples=False
 
+        encoded_triples = sample_encoded_triples(
+            current_batch,
+            entity_to_idx,
+            relation_to_idx,
+            sample_size=len(current_batch)
+        )
+
+        print(f"\n[Epoch {epoch}]")
+        print(f"Batch size: {len(current_batch)}")
+        print(f"Encoded triples: {len(encoded_triples)}")
 
         total_loss = 0.0
         random.shuffle(encoded_triples)
@@ -244,6 +252,23 @@ def fine_tune_kvsall(
 
         with open(os.path.join(fine_tune_folder, "relation_to_idx.p"), "wb") as f:
             pickle.dump(relation_to_idx, f)
+            
+            
+        # === SAVE CSV VERSION ===
+        entity_df = pd.DataFrame({
+            "entity": list(entity_to_idx.keys()),
+            "index": list(entity_to_idx.values())
+        })
+
+        relation_df = pd.DataFrame({
+            "relation": list(relation_to_idx.keys()),
+            "index": list(relation_to_idx.values())
+        })
+
+        entity_df.to_csv(os.path.join(fine_tune_folder, "entity_to_idx.csv"), index=False)
+        relation_df.to_csv(os.path.join(fine_tune_folder, "relation_to_idx.csv"), index=False)
+
+        print(" Saved entity_to_idx.csv and relation_to_idx.csv")
 
         train_er_vocab = get_er_vocab(train_triples)
         train_re_vocab = get_re_vocab(train_triples)

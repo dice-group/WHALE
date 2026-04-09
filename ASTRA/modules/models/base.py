@@ -75,23 +75,29 @@ class Fusion(nn.Module):
 
 
 
-def symmetric_margin_loss(S, T, margin=0.5, k=32):
+def symmetric_margin_loss(S, T, margin=0.5, k=5):
     S = F.normalize(S, dim=1)
     T = F.normalize(T, dim=1)
 
     N = S.size(0)
-    sim = torch.matmul(S, T.t())  
+
+    sim = torch.matmul(S, T.t())  # cosine sim
+
+    # Mask diagonal (positive pairs)
     mask = torch.eye(N, device=S.device).bool()
     sim_neg = sim.masked_fill(mask, -1e9)
 
+    # hard negatives
     k = min(k, N-1)
     hard_neg, _ = torch.topk(sim_neg, k=k, dim=1)
     neg_mean = hard_neg.mean(dim=1)
 
     pos = sim.diag()
 
+    # margin loss: pos >= neg + margin
     L_ST = F.relu(neg_mean + margin - pos).mean()
 
+    # symmetric term: T->S
     sim2 = sim.t()
     sim2_neg = sim2.masked_fill(mask, -1e9)
     hard_neg2, _ = torch.topk(sim2_neg, k=k, dim=1)
@@ -101,6 +107,7 @@ def symmetric_margin_loss(S, T, margin=0.5, k=32):
     L_TS = F.relu(neg_mean2 + margin - pos2).mean()
 
     return L_ST + L_TS, pos.mean().item(), neg_mean.mean().item()
+
 
 
 

@@ -18,10 +18,8 @@ def evaluate_link_prediction_performance(model, triples, er_vocab, re_vocab, qui
     filters er_vocab/re_vocab to known entities to avoid KeyError.
     Returns {'H@1','H@3','H@10','MRR'} as usual.
     """
-    # Basic checks
     model.model.eval()
     ent2idx = model.entity_to_idx
-    # handle naming differences
     rel2idx = getattr(model, "relation_to_idx", None) or getattr(model, "relation_to_id", None)
     assert isinstance(ent2idx, dict) and isinstance(rel2idx, dict), "model must expose entity_to_idx / relation_to_idx dicts."
 
@@ -33,13 +31,11 @@ def evaluate_link_prediction_performance(model, triples, er_vocab, re_vocab, qui
     used = 0
     skipped = 0
 
-    # all entities tensor on correct device
     all_entities = torch.arange(0, num_entities, dtype=torch.long, device=device)
 
     for i in tqdm(range(len(triples))):
         str_h, str_r, str_t = triples[i]
 
-        # Skip if anything is unknown
         if (str_h not in ent2idx) or (str_t not in ent2idx) or (str_r not in rel2idx):
             skipped += 1
             if not quiet and skipped <= 5:  # avoid spamming
@@ -56,7 +52,6 @@ def evaluate_link_prediction_performance(model, triples, er_vocab, re_vocab, qui
         r_ten = torch.tensor(r, device=device)
         t_ten = torch.tensor(t, device=device)
 
-        # Predict tails: (h, r, ?)
         x_tails = torch.stack((
             h_ten.repeat(num_entities),
             r_ten.repeat(num_entities),
@@ -64,7 +59,7 @@ def evaluate_link_prediction_performance(model, triples, er_vocab, re_vocab, qui
         ), dim=1)
         predictions_tails = model.model.forward_triples(x_tails).detach()
 
-        # Predict heads: (?, r, t)
+    
         x_heads = torch.stack((
             all_entities,
             r_ten.repeat(num_entities),
@@ -72,7 +67,7 @@ def evaluate_link_prediction_performance(model, triples, er_vocab, re_vocab, qui
         ), dim=1)
         predictions_heads = model.model.forward_triples(x_heads).detach()
 
-        # Filtered rankings for tails
+
         filt_tails_uris = er_vocab.get((str_h, str_r), [])
         filt_tails_idx = [ent2idx[u] for u in filt_tails_uris if (u in ent2idx) and (u != str_t)]
 
@@ -83,7 +78,6 @@ def evaluate_link_prediction_performance(model, triples, er_vocab, re_vocab, qui
         _, sort_idxs = torch.sort(predictions_tails, descending=True)
         filt_tail_entity_rank = (sort_idxs == t).nonzero(as_tuple=False).view(-1)[0].item() + 1
 
-        # Filtered rankings for heads
         filt_heads_uris = re_vocab.get((str_r, str_t), [])
         filt_heads_idx = [ent2idx[u] for u in filt_heads_uris if (u in ent2idx) and (u != str_h)]
 
@@ -94,7 +88,6 @@ def evaluate_link_prediction_performance(model, triples, er_vocab, re_vocab, qui
         _, sort_idxs = torch.sort(predictions_heads, descending=True)
         filt_head_entity_rank = (sort_idxs == h).nonzero(as_tuple=False).view(-1)[0].item() + 1
 
-        # Reciprocal ranks (both head & tail)
         rr = 1.0 / filt_head_entity_rank + 1.0 / filt_tail_entity_rank
         reciprocal_ranks.append(rr)
 
@@ -121,7 +114,6 @@ def run_link_prediction_evaluation(final_model_folder, finetuned_model_folder, t
 
     full_test_triples = pd.read_csv(test_triples_path, sep="\s+", header=None,
                                     names=['subject', 'relation', 'object'], dtype=str).values.tolist()
-    test_triples_1000 = full_test_triples[:1000]
 
     er_vocab_1000 = get_er_vocab(full_test_triples)
     re_vocab_1000 = get_re_vocab(full_test_triples)

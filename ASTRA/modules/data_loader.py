@@ -128,15 +128,23 @@ def remove_brackets_from_indices(embeddings_df):
     return embeddings_df
 
 
-def clean_uri(uri):
-    """Normalize URIs: remove angle brackets, quotes, decode escapes, strip whitespace."""
-    if uri is None:
+def clean_uri(u):
+    if u is None:
         return ""
-    u = str(uri).strip()
-    u = u.replace("<<", "").replace(">>", "").replace("<", "").replace(">", "")
-    u = u.strip().strip('"')  
-    u = unquote(u)           
+
+    u = str(u).strip()
+    u = u.replace("<", "").replace(">", "")
+    u = u.strip().strip('"')
+
+    # decode URL encoding
+    u = unquote(u)
+
+    # normalize unicode (important!)
+    import unicodedata
+    u = unicodedata.normalize("NFC", u)
+
     return u
+
 
     
 def build_alignment_dict(path):
@@ -283,7 +291,17 @@ def create_train_val_test_matrices_from_links(train_links, val_links, test_links
                 print(f"    Length: {len(link)}")
             else:
                 print(f"    WARNING: Not a list or tuple!")
+                
+        print("\n=== CHECK MATCHING ===")
 
+        for e1, e2 in links[:5]:
+            print("ALIGN:", e1)
+            print("IN ent1?", e1 in entity_embeddings1.index)
+
+            print("ALIGN:", e2)
+            print("IN ent2?", e2 in entity_embeddings2.index)
+            print("---")
+            
         for link in links:
             if len(link) != 2:
                 skipped += 1
