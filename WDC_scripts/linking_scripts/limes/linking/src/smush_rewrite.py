@@ -16,6 +16,29 @@ def parse_uri(token: str) -> str | None:
         return token[1:-1]
     return None
 
+def parse_link_record(line: str) -> tuple[str, str, float] | None:
+    parts = line.split("\t")
+    if len(parts) >= 3:
+        u1 = parse_uri(parts[0])
+        u2 = parse_uri(parts[1])
+        if not u1 or not u2:
+            return None
+        try:
+            conf = float(parts[2])
+        except ValueError:
+            return None
+        return u1, u2, conf
+
+    parts = line.split()
+    if len(parts) >= 4 and parts[1] == "<http://www.w3.org/2002/07/owl#sameAs>":
+        u1 = parse_uri(parts[0])
+        u2 = parse_uri(parts[2])
+        if not u1 or not u2:
+            return None
+        return u1, u2, 1.0
+
+    return None
+
 class UnionFind:
     def __init__(self):
         self.parent = {}
@@ -59,17 +82,10 @@ def build_mapping(links_tsv: str, conf_threshold: float) -> dict[str, str]:
             line = line.strip()
             if not line:
                 continue
-            parts = line.split("\t")
-            if len(parts) < 3:
+            parsed = parse_link_record(line)
+            if parsed is None:
                 continue
-            u1 = parse_uri(parts[0])
-            u2 = parse_uri(parts[1])
-            if not u1 or not u2:
-                continue
-            try:
-                conf = float(parts[2])
-            except ValueError:
-                continue
+            u1, u2, conf = parsed
 
             seen.add(u1)
             seen.add(u2)
