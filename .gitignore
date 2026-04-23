@@ -176,3 +176,6 @@ wikidata_classes_by_language.csv
 wikidata_classes.nt
 *.xml
 *.nt
+
+/SAGE/inputs
+/SAGE/outputs
