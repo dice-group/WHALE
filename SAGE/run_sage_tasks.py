@@ -1,3 +1,5 @@
+from SAGE.modules.eval.link_prediction_with_complex import run_link_prediction_with_complex_pipeline
+from SAGE.modules.train_tasks import train_sage_tasks
 from .modules.eval.link_prediction import (
     run_link_prediction_pipeline,
 )
@@ -135,7 +137,7 @@ print("\n" + "="*55)
 print("  STEP 4: TRAINING SAGE")
 print("="*55)
 
-results, gat1, gat2, fusion, projector, A1, A2 = train_sage(
+results, gat1, gat2, fusion, projector, complex_head1, complex_head2, A1, A2 = train_sage_tasks(
     data=data,
     G1=G1,
     G2=G2,
@@ -193,7 +195,7 @@ print("\n" + "="*55)
 print("  STEP 6: LINK PREDICTION")
 print("="*55)
 
-lp_results = run_link_prediction_pipeline(
+lp_results = run_link_prediction_with_complex_pipeline(
     aligned_kg1_csv=os.path.join(OUTPUT_DIR, "aligned_kg1.csv"),
     aligned_kg2_csv=os.path.join(OUTPUT_DIR, "aligned_kg2.csv"),
     folder_kg1=FOLDER_KG1,
@@ -205,7 +207,7 @@ lp_results = run_link_prediction_pipeline(
     fine_tune_epochs=2,
     fine_tune_lr=0.001,
     rel_triples_1_path=REL_TRIPLES_1,
-    rel_triples_2_path=REL_TRIPLES_2,
+    rel_triples_2_path=REL_TRIPLES_2
 )
 
 # ─────────────────────────────────────────────

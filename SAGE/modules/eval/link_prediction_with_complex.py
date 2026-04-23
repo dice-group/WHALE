@@ -187,7 +187,7 @@ def build_merged_embeddings(
 
     print(f"\n[lp] Loading relation embeddings...")
 
-    from sage.modules.data.loader import (
+    from ..data.loader import (
         extract_files_from_directory,
         _load_idx_mapping,
     )
@@ -522,7 +522,7 @@ def fine_tune_kvsall(
 # MAIN LINK PREDICTION PIPELINE
 # ─────────────────────────────────────────────
 
-def run_link_prediction_pipeline(
+def run_link_prediction_with_complex_pipeline(
     aligned_kg1_csv: str,
     aligned_kg2_csv: str,
     folder_kg1: str,

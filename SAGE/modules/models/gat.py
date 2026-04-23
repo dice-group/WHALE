@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from typing import Dict, Optional
-from sage.modules.data.graph import MergedGraph
+from ..data.graph import MergedGraph
 
 
 # ─────────────────────────────────────────────
@@ -12,9 +12,9 @@ from sage.modules.data.graph import MergedGraph
 # ─────────────────────────────────────────────
 
 def _sparse_softmax(
-    scores      : torch.Tensor,
-    dst_indices : torch.Tensor,
-    n_nodes     : int,
+    scores: torch.Tensor,
+    dst_indices: torch.Tensor,
+    n_nodes: int,
 ) -> torch.Tensor:
     """
     Compute softmax over neighbor attention scores
@@ -83,12 +83,12 @@ class RelationalGATLayer(nn.Module):
 
     def __init__(
         self,
-        in_dim       : int,
-        out_dim      : int,
-        n_relations  : int,
-        n_heads      : int = 4,
-        dropout      : float = 0.1,
-        align_rel_id : Optional[int] = None,
+        in_dim: int,
+        out_dim: int,
+        n_relations: int,
+        n_heads: int = 4,
+        dropout: float = 0.1,
+        align_rel_id: Optional[int] = None,
     ):
         super().__init__()
 
@@ -96,11 +96,11 @@ class RelationalGATLayer(nn.Module):
             f"out_dim ({out_dim}) must be divisible " \
             f"by n_heads ({n_heads})"
 
-        self.in_dim       = in_dim
-        self.out_dim      = out_dim
-        self.n_relations  = n_relations
-        self.n_heads      = n_heads
-        self.head_dim     = out_dim // n_heads
+        self.in_dim = in_dim
+        self.out_dim = out_dim
+        self.n_relations = n_relations
+        self.n_heads = n_heads
+        self.head_dim = out_dim // n_heads
         self.align_rel_id = align_rel_id
 
         self.rel_embed_dim = 32
@@ -113,7 +113,7 @@ class RelationalGATLayer(nn.Module):
             out_dim,
             bias=False
         )
-    
+
         self.W_self = nn.Linear(in_dim, out_dim, bias=False)
 
         self.attn_vec = nn.Parameter(
@@ -126,13 +126,13 @@ class RelationalGATLayer(nn.Module):
         self.align_gate = nn.Parameter(torch.tensor(0.5))
 
         self.layer_norm = nn.LayerNorm(out_dim)
-        self.drop       = nn.Dropout(dropout)
+        self.drop = nn.Dropout(dropout)
 
     def forward(
         self,
-        x         : torch.Tensor,
-        adj_lists : Dict[int, np.ndarray],
-        device    : torch.device,
+        x: torch.Tensor,
+        adj_lists: Dict[int, np.ndarray],
+        device: torch.device,
     ) -> torch.Tensor:
         """
         Forward pass.
@@ -166,7 +166,7 @@ class RelationalGATLayer(nn.Module):
             src_emb = x[src]
 
             r_id_t = torch.tensor(r_id, device=x.device)
-            r_emb  = self.rel_embeddings(r_id_t)
+            r_emb = self.rel_embeddings(r_id_t)
             r_emb_expanded = r_emb.unsqueeze(0).expand(n_edges, -1)
 
             msg_input = torch.cat([src_emb, r_emb_expanded], dim=1)
@@ -211,6 +211,7 @@ class RelationalGATLayer(nn.Module):
 # RELATIONAL GAT ENCODER
 # ─────────────────────────────────────────────
 
+
 class RelationalGATEncoder(nn.Module):
     """
     Full two-layer Relational GAT encoder.
@@ -239,19 +240,19 @@ class RelationalGATEncoder(nn.Module):
 
     def __init__(
         self,
-        dice_dim     : int,
-        labse_dim    : int,
-        hidden_dim   : int,
-        n_relations  : int,
-        n_heads      : int = 4,
-        dropout      : float = 0.1,
-        align_rel_id : Optional[int] = None,
+        dice_dim: int,
+        labse_dim: int,
+        hidden_dim: int,
+        n_relations: int,
+        n_heads: int = 4,
+        dropout: float = 0.1,
+        align_rel_id: Optional[int] = None,
     ):
         super().__init__()
 
-        self.dice_dim    = dice_dim
-        self.labse_dim   = labse_dim
-        self.hidden_dim  = hidden_dim
+        self.dice_dim = dice_dim
+        self.labse_dim = labse_dim
+        self.hidden_dim = hidden_dim
 
         input_dim = dice_dim + labse_dim  # 256 + 768 = 1024
 
@@ -262,31 +263,31 @@ class RelationalGATEncoder(nn.Module):
         )
 
         self.gat1 = RelationalGATLayer(
-            in_dim       = hidden_dim,
-            out_dim      = hidden_dim,
-            n_relations  = n_relations,
-            n_heads      = n_heads,
-            dropout      = dropout,
-            align_rel_id = align_rel_id,
+            in_dim=hidden_dim,
+            out_dim=hidden_dim,
+            n_relations=n_relations,
+            n_heads=n_heads,
+            dropout=dropout,
+            align_rel_id=align_rel_id,
         )
 
         self.gat2 = RelationalGATLayer(
-            in_dim       = hidden_dim,
-            out_dim      = hidden_dim,
-            n_relations  = n_relations,
-            n_heads      = n_heads,
-            dropout      = dropout,
-            align_rel_id = align_rel_id,
+            in_dim=hidden_dim,
+            out_dim=hidden_dim,
+            n_relations=n_relations,
+            n_heads=n_heads,
+            dropout=dropout,
+            align_rel_id=align_rel_id,
         )
 
         self.out_norm = nn.LayerNorm(hidden_dim)
 
     def forward(
         self,
-        E         : torch.Tensor,
-        P         : torch.Tensor,
-        adj_lists : Dict[int, np.ndarray],
-        device    : torch.device,
+        E: torch.Tensor,
+        P: torch.Tensor,
+        adj_lists: Dict[int, np.ndarray],
+        device: torch.device,
     ) -> torch.Tensor:
         """
         Forward pass.
@@ -302,13 +303,13 @@ class RelationalGATEncoder(nn.Module):
         """
         x = torch.cat([E, P], dim=1)
         x = self.input_proj(x)
-        
+
         h1 = self.gat1(x, adj_lists, device)
         h1 = h1 + x
-        
+
         h2 = self.gat2(h1, adj_lists, device)
         h2 = h2 + h1
-        
+
         out = self.out_norm(h2)
 
         return out
