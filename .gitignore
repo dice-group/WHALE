@@ -223,3 +223,8 @@ WDC_scripts/linking_scripts/limes/sparql_api.py
 WDC_scripts/linking_scripts/limes/triples_validator.py
 WDC_scripts/linking_scripts/limes/txt_to_nt.py
 WDC_scripts/linking_scripts/limes/virtuoso_guy.py
+!WDC_scripts/linking_scripts/limes/linking/src/get_types_with_interesting_predicates.sh
+!WDC_scripts/linking_scripts/limes/linking/src/align-types.sh
+LIMES
+WDC_scripts/linking_scripts/limes/lov_extracting.py
+WDC_scripts/linking_scripts/limes/one_to_one_mapping.py
