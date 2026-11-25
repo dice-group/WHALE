@@ -1,5 +1,4 @@
 import torch
-import pandas as pd
 import os, json, random, pickle, logging
 import sys
 from tqdm import tqdm
@@ -7,6 +6,7 @@ import torch.nn.functional as F
 import sys, os
 from dicee import KGE, intialize_model
 import shutil
+
 from modules.data_loader import sample_encoded_triples, load_json
 from modules.eval.link_prediction import evaluate_link_prediction_performance
 from dicee.static_funcs import get_er_vocab, get_re_vocab
@@ -38,10 +38,11 @@ def initialize_models_and_update_embeddings(entity_embeddings, relation_embeddin
             "embedding_dim": embedding_dim
         }
         
-        
+    # === Define fine-tune folder ===
     fine_tune_folder = os.path.join(output_dir, "fine_tune")
     os.makedirs(fine_tune_folder, exist_ok=True)
 
+    # === Copy configuration & report from directory_1 ===
     source_config = os.path.join(directory_1, "configuration.json")
     source_report = os.path.join(directory_1, "report.json")
 
@@ -74,7 +75,9 @@ def initialize_models_and_update_embeddings(entity_embeddings, relation_embeddin
     configs["num_relations"] = params["num_relations"]
     configs["embedding_dim"] = params["embedding_dim"]
 
+    # Initialize model from config
     model, _ = intialize_model(configs)
+    
 
     if hasattr(model, "q_coefficients"):
         model.q_coefficients.weight.requires_grad = True
@@ -86,6 +89,7 @@ def initialize_models_and_update_embeddings(entity_embeddings, relation_embeddin
     entity_tensor = torch.tensor(entity_embeddings, dtype=torch.float32)
     relation_tensor = torch.tensor(relation_embeddings, dtype=torch.float32)
 
+    # Update model's embedding weights
     with torch.no_grad():
         model.entity_embeddings.weight.data = entity_tensor
         model.relation_embeddings.weight.data = relation_tensor
@@ -93,7 +97,6 @@ def initialize_models_and_update_embeddings(entity_embeddings, relation_embeddin
         model.relation_embeddings.weight.requires_grad = False
 
     return model
-
 
 
 torch.autograd.set_detect_anomaly(True)
@@ -141,12 +144,20 @@ def fine_tune_kvsall(
 
 
     model.train()
-   
+    random.shuffle(triples_batch)
+    n = len(triples_batch)
+    batch_1 = triples_batch[:n//3]
+    batch_2 = triples_batch[n//3:2*n//3]
+    batch_3 = triples_batch[2*n//3:]
+    
+
     print("Trainable params now:")
     for name, param in model.named_parameters():
         if param.requires_grad:
             print(f"  {name}: {tuple(param.shape)}")
 
+        
+    #  Confirm requires_grad is set correctly
     for name, param in model.named_parameters():
         print(f" {name}: requires_grad={param.requires_grad}")
 
@@ -157,24 +168,13 @@ def fine_tune_kvsall(
         param_groups.append({"params": model.q_coefficients.parameters(), "lr": lr * 5.0})
     optimizer = torch.optim.Adam(param_groups, weight_decay=0.0)
     
-    # Step 1: sample 20% from FULL dataset
+    sample_new_triples = False
     def get_sample_size(data, ratio=0.2):
         return max(1, int(len(data) * ratio))
-
+    
     sample_size = get_sample_size(triples_batch)
 
-    sampled_data = random.sample(triples_batch, sample_size)
-
-    print(f"Using {len(sampled_data)} / {len(triples_batch)} triples (20%)")
-
-    # Step 2: split sampled data into 3 batches
-    n = len(sampled_data)
-
-    batch_1 = sampled_data[:n//3]
-    batch_2 = sampled_data[n//3:2*n//3]
-    batch_3 = sampled_data[2*n//3:]
-
-    # Training loop
+    encoded_triples = sample_encoded_triples(triples_batch, entity_to_idx, relation_to_idx, sample_size=sample_size)
     for epoch in range(epochs):
         if epoch < 10:
             current_batch = batch_1
@@ -182,17 +182,15 @@ def fine_tune_kvsall(
             current_batch = batch_2
         else:
             current_batch = batch_3
+        if epoch==10:
+            sample_new_triples=True
+        elif epoch==20:
+            sample_new_triples=True
+        if sample_new_triples:
+            sample_size = get_sample_size(current_batch)
+            encoded_triples = sample_encoded_triples(current_batch, entity_to_idx, relation_to_idx, sample_size=sample_size)
+            sample_new_triples=False
 
-        encoded_triples = sample_encoded_triples(
-            current_batch,
-            entity_to_idx,
-            relation_to_idx,
-            sample_size=len(current_batch)
-        )
-
-        print(f"\n[Epoch {epoch}]")
-        print(f"Batch size: {len(current_batch)}")
-        print(f"Encoded triples: {len(encoded_triples)}")
 
         total_loss = 0.0
         random.shuffle(encoded_triples)
@@ -202,6 +200,7 @@ def fine_tune_kvsall(
             batch_tensor = torch.tensor(batch, dtype=torch.long, device=device)  # [B, 3]
 
             scores = model.forward_k_vs_all(batch_tensor)  # [B, num_entities]
+
             B, N = scores.shape
             rows = torch.arange(B, device=device)
             true_tails = batch_tensor[:, 2]
@@ -216,6 +215,7 @@ def fine_tune_kvsall(
             negs = scores.gather(1, hard_negs)           
             logits = torch.cat([pos, negs], dim=1)       
 
+            # class 0 is the positive
             targets_ce = torch.zeros(B, dtype=torch.long, device=device)
             loss = F.cross_entropy(logits, targets_ce)
             
@@ -234,6 +234,7 @@ def fine_tune_kvsall(
         if hasattr(model, "q_coefficients"):
             print("q_coefficients now:", model.q_coefficients.weight.detach().cpu().numpy())
             
+         # === Save fine-tuned model directly inside output_dir/fine_tune ===
         fine_tune_folder = os.path.join(output_dir, "fine_tune")
         os.makedirs(fine_tune_folder, exist_ok=True)
                     
@@ -242,33 +243,18 @@ def fine_tune_kvsall(
         
         print("Evaluating on validation triples after fine-tuning...")
     
+        
         def get_entity_coverage(triples):
             heads = {h for (h, _, _) in triples}
             tails = {t for (_, _, t) in triples}
             return heads.union(tails)
 
+                
         with open(os.path.join(fine_tune_folder, "entity_to_idx.p"), "wb") as f:
             pickle.dump(entity_to_idx, f)
 
         with open(os.path.join(fine_tune_folder, "relation_to_idx.p"), "wb") as f:
             pickle.dump(relation_to_idx, f)
-            
-            
-        # === SAVE CSV VERSION ===
-        entity_df = pd.DataFrame({
-            "entity": list(entity_to_idx.keys()),
-            "index": list(entity_to_idx.values())
-        })
-
-        relation_df = pd.DataFrame({
-            "relation": list(relation_to_idx.keys()),
-            "index": list(relation_to_idx.values())
-        })
-
-        entity_df.to_csv(os.path.join(fine_tune_folder, "entity_to_idx.csv"), index=False)
-        relation_df.to_csv(os.path.join(fine_tune_folder, "relation_to_idx.csv"), index=False)
-
-        print(" Saved entity_to_idx.csv and relation_to_idx.csv")
 
         train_er_vocab = get_er_vocab(train_triples)
         train_re_vocab = get_re_vocab(train_triples)
@@ -279,13 +265,16 @@ def fine_tune_kvsall(
         val_er_vocab = get_er_vocab(val_triples)
         val_re_vocab = get_re_vocab(val_triples)
 
+        # Load the final model
         finetuned_model = KGE(path= fine_tune_folder)
     
+        # Evaluate only on the 1000 triples
         train_metrics = evaluate_link_prediction_performance(finetuned_model, train_triples, train_er_vocab, train_re_vocab)
         print(f" Finetuned Model Performance on first 1000 triples train set:\n{train_metrics}")
 
         val_metrics = evaluate_link_prediction_performance(finetuned_model, val_triples, val_er_vocab, val_re_vocab)
 
+        # capture q coefficient(s)
         if hasattr(model, "q_coefficients"):
             q_vec = model.q_coefficients.weight.detach().cpu().flatten().tolist()
         else:
@@ -318,18 +307,21 @@ def fine_tune_kvsall(
         for metric, value in val_metrics.items():
             print(f"{metric}: {value:.4f}")
             
-            
+                
+    # Save evaluation metrics
     with open(os.path.join(fine_tune_folder, "fine_tune_metrics.json"), "w") as mf:
         json.dump({"train": train_metrics, "val": val_metrics}, mf, indent=2)
 
     with open(os.path.join(fine_tune_folder, "fine_tune_history.json"), "w") as mf:
         json.dump(history, mf, indent=2)
 
+    # Save latest checkpoint
     torch.save({
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict()
     }, os.path.join(fine_tune_folder, "fine_tuned_checkpoint.pth"))
 
+    # Save best model (also into fine_tune/)
     if best_model_state is not None:
         torch.save(best_model_state, os.path.join(fine_tune_folder, "model.pt"))
         with open(os.path.join(fine_tune_folder, "best_model_metadata.json"), "w") as f:

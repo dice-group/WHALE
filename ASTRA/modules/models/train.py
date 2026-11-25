@@ -3,6 +3,7 @@ import random
 from pathlib import Path
 from pyexpat import model
 import numpy as np
+from sklearn.metrics import roc_auc_score, average_precision_score
 import pandas as pd
 import torch
 import torch.nn.functional as F
@@ -25,6 +26,12 @@ from modules.models.fine_tune import fine_tune_kvsall
 import types
 import modules.models.train as train_mod
 
+
+# === Data loader ===
+from modules.data_loader import (
+     normalize_embedding_space,load_triples, load_triples_from_files,load_parquet_triples
+)
+
 # --- Model imports ---
 from modules.models.base import SharedSpaceAlignmentNN
 
@@ -32,16 +39,28 @@ from modules.models.base import SharedSpaceAlignmentNN
 from modules.eval.Entity_alignment import test
 
 
+def load_oenea_triples(path):
+    triples = []
+    with open(path, "r", encoding="utf8") as f:
+        for line in f:
+            h, r, t = line.strip().split('\t')
+            triples.append((h, r, t))
+    return triples
+
+
+
 def train_alignment_model(
     input_dim, hidden_dim, epochs, lr,
     entity_embeddings1, entity_embeddings2, relation_embeddings,
     output_dir, triples_batch, kg_1,
     kg_2,device,
+    #cleaned_alignment_dict, 
     S_train_keys, T_train_keys,S_val_keys, T_val_keys,
     val_triples, train_triples,
     directory_1=None,
     S_test_keys=None, T_test_keys=None, test_triples_path=None
 ):
+    
 
     G = build_merged_graph(kg_1, kg_2)
 
@@ -53,27 +72,16 @@ def train_alignment_model(
         
     id2ent = {i: e for e, i in G.entity2id.items()}
 
-    def normalize(ent):
-        return ent.strip().replace("'", "")
 
     E_list = []
-    missing = []
-
     for i in range(len(id2ent)):
         ent = id2ent[i]
-        ent_clean = normalize(ent)
-
-        if ent_clean in entity_embeddings1.index:
-            E_list.append(entity_embeddings1.loc[ent_clean].values)
-        elif ent_clean in entity_embeddings2.index:
-            E_list.append(entity_embeddings2.loc[ent_clean].values)
+        if ent in entity_embeddings1.index:
+            E_list.append(entity_embeddings1.loc[ent].values)
         else:
-            missing.append(ent)
-            E_list.append(np.zeros(entity_embeddings1.shape[1]))
+            E_list.append(entity_embeddings2.loc[ent].values)
 
-    print(f"Missing entities: {len(missing)}")
-
-    E = torch.tensor(np.array(E_list), dtype=torch.float32)
+    E = torch.tensor(E_list)
 
     idx_map = G.entity2id
 
@@ -99,10 +107,11 @@ def train_alignment_model(
     train_logs = []
     val_logs = []
 
-    #### Training
+    #### 4) Training
     #### --------------------------------------------------------
     for epoch in range(epochs):
 
+        # 2) shuffle training link indices
         batch_size = 512
         perm = torch.randperm(len(S_idx), device=S_idx.device)
 
@@ -124,6 +133,8 @@ def train_alignment_model(
             dtype=torch.long, device=E.device
             )
 
+
+            # forward (recompute H per batch; slower but safe)
             H = rgcn(E, G.adj_lists)
             
             Hs = H[Sb]
@@ -135,17 +146,35 @@ def train_alignment_model(
             S_align = proposer(S_fused)
             T_align = proposer(T_fused)
 
+            # main loss
             loss, pos, neg = symmetric_margin_loss(
                 S_align,
                 T_align,
                 margin=0.8,
-                k=5
+                k=32
             )
+
+            xS = torch.cat([E[Sb], Hs], dim=-1)
+            xT = torch.cat([E[Tb], Ht], dim=-1)
+
+            aS = torch.sigmoid(fusion.gate(xS))
+            aT = torch.sigmoid(fusion.gate(xT))
+
+            def gate_penalty(a, low=0.2, high=0.8):
+                return (
+                    F.relu(low - a).pow(2).mean() +
+                    F.relu(a - high).pow(2).mean()
+                )
+
+            gate_reg = 0.1 * (gate_penalty(aS) + gate_penalty(aT))
+
+            loss = loss + gate_reg
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
+            # accumulate epoch stats
             total_loss += loss.item()
             sum_pos += float(pos)
             sum_neg += float(neg)
@@ -156,13 +185,31 @@ def train_alignment_model(
         avg_neg  = sum_neg / max(1, num_batches)
         print(f"[TRAIN {epoch}] avg_loss={avg_loss:.4f} avg_pos={avg_pos:.4f} avg_neg={avg_neg:.4f}")
         
+        with torch.no_grad():
+
+            H_tmp = rgcn(E, G.adj_lists)
+
+            xS_all = torch.cat([E[S_idx], H_tmp[S_idx]], dim=-1)
+            xT_all = torch.cat([E[T_idx], H_tmp[T_idx]], dim=-1)
+
+            aS_all = torch.sigmoid(fusion.gate(xS_all))
+            aT_all = torch.sigmoid(fusion.gate(xT_all))
+
+            a_all = torch.cat([aS_all, aT_all], dim=0)
+
+            alpha_struct = a_all.mean().item()
+            alpha_base = (1 - a_all).mean().item()
+
+        print(
+            f"[FUSION {epoch}] structural={alpha_struct:.4f} base={alpha_base:.4f}"
+)
+
         # -----------------------------
-        # TRAIN EVAL (no_grad)
+        # PROBE + TRAIN EVAL (no_grad)
         # -----------------------------
         with torch.no_grad():
 
             b_probe = torch.randperm(len(S_idx), device=S_idx.device)[:512]
-            print("Train pairs:", len(S_idx))
             Sb_p = S_idx[b_probe]
             Tb_p = T_idx[b_probe]
 
@@ -181,13 +228,21 @@ def train_alignment_model(
             off_mean = ((sim.sum() - sim.diag().sum()) / (sim.numel() - sim.size(0))).item()
             print(f"[PROBE {epoch}] pos_mean={pos_mean:.4f} offdiag_mean={off_mean:.4f}")
 
- 
+            # ---- full train embeddings for EA evaluation ----
             H_train = rgcn(E, G.adj_lists)
             Hs_t = H_train[S_idx]
             Ht_t = H_train[T_idx]
 
             S_train_f = fusion(E[S_idx], Hs_t)
             T_train_f = fusion(E[T_idx], Ht_t)
+            
+            # -------- Fusion analysis --------
+            Z = S_train_f
+
+            cos_ZE = F.cosine_similarity(Z, E[S_idx], dim=1).mean().item()
+            cos_ZH = F.cosine_similarity(Z, Hs_t, dim=1).mean().item()
+
+            print(f"[FUSION SIM {epoch}] cos(Z,E)={cos_ZE:.4f} cos(Z,H)={cos_ZH:.4f}")
 
             S_train_a = proposer(S_train_f)
             T_train_a = proposer(T_train_f)
@@ -207,9 +262,11 @@ def train_alignment_model(
             f"pos={pos:.4f} neg={neg:.4f} "
             f"H@1={train_hits[0]:.4f} H@10={train_hits[2]:.4f} "
             f"MRR={train_mrr:.4f} "
+            f"struct={alpha_struct:.3f} base={alpha_base:.3f}"
         )
 
         
+        # save train log
         train_logs.append({
             "epoch": epoch,
             "loss": loss.item(),
@@ -220,9 +277,12 @@ def train_alignment_model(
             "hits10": train_hits[2],
             "hits50": train_hits[3],
             "mr": train_mr,
-            "mrr": train_mrr
+            "mrr": train_mrr,
+            "alpha_structural": alpha_struct,
+            "alpha_base": alpha_base,
+            "cos_Z_E": cos_ZE,
+            "cos_Z_H": cos_ZH
         })
-        
         #### --------- VALIDATION ---------
         if epoch % 1 == 0:
             with torch.no_grad():
@@ -239,7 +299,9 @@ def train_alignment_model(
                 T_val_a = proposer(T_val_f)
 
                 val_loss, val_pos, val_neg = symmetric_margin_loss(S_val_a, T_val_a)
-                
+
+
+                # ---- Compute ranking metrics on VAL ----
                 S_val_np = S_val_a.cpu().numpy()
                 T_val_np = T_val_a.cpu().numpy()
 
@@ -256,6 +318,7 @@ def train_alignment_model(
                 print(f"[VAL   {epoch}] loss={val_loss:.4f} pos={val_pos:.4f} neg={val_neg:.4f} "
                     f"H@1={val_hits[0]:.4f}  H@10={val_hits[2]:.4f}  MRR={val_mrr:.4f}")
 
+                # save val metrics
                 val_logs.append({
                     "epoch": epoch,
                     "loss": val_loss.item(),
@@ -269,6 +332,8 @@ def train_alignment_model(
                     "mrr": val_mrr
                 })
 
+
+            # === Save best model based on VAL MRR ===
                 if val_mrr > best_val_mrr:
                     best_val_mrr = val_mrr
                     torch.save(proposer.state_dict(), os.path.join(output_dir, "best_val_proposer.pt"))
@@ -284,7 +349,7 @@ def train_alignment_model(
 
 
     # --------------------------------------------
-    # Load saved modules
+    # 1. Load saved modules
     # --------------------------------------------
     proposer = SharedSpaceAlignmentNN(input_dim, hidden_dim)
     fusion   = Fusion(input_dim)
@@ -298,106 +363,113 @@ def train_alignment_model(
     fusion.eval()
     rgcn.eval()
 
+    # --------------------------------------------
+    # 2. Prepare S_test and T_test embeddings
+    # (use SAME merged graph ordering)
+    # --------------------------------------------
+    S_test_idx = torch.tensor([G.entity2id[u] for u in S_test_keys]).long()
+    T_test_idx = torch.tensor([G.entity2id[v] for v in T_test_keys]).long()
 
-    if S_test_keys is not None and len(S_test_keys) > 0:
-        S_test_idx = torch.tensor([G.entity2id[u] for u in S_test_keys]).long()
-        T_test_idx = torch.tensor([G.entity2id[v] for v in T_test_keys]).long()
-    else:
-        print("No test alignment pairs → skipping test indexing")
-        S_test_idx = None
-        T_test_idx = None
+    E_test = E  
 
-    S_test_aligned = None
-    T_test_aligned = None
+    with torch.no_grad():
 
-    if S_test_idx is not None:
-        E_test = E  
+        # 3. Compute structural embeddings
+        H_test = rgcn(E_test, G.adj_lists)
 
-        with torch.no_grad():
-            H_test = rgcn(E_test, G.adj_lists)
+        Hs_test = H_test[S_test_idx]
+        Ht_test = H_test[T_test_idx]
 
-            Hs_test = H_test[S_test_idx]
-            Ht_test = H_test[T_test_idx]
-            
-            S_test_fused = fusion(E_test[S_test_idx], Hs_test)
-            T_test_fused = fusion(E_test[T_test_idx], Ht_test)
-            
-            S_test_aligned = proposer(S_test_fused)
-            T_test_aligned = proposer(T_test_fused)
-    else:
-        print("Skipping test embedding computation")
+        # 4. Fuse base + structure
+        S_test_fused = fusion(E_test[S_test_idx], Hs_test)
+        T_test_fused = fusion(E_test[T_test_idx], Ht_test)
+
+        # 5. Shared space proposer
+        S_test_aligned = proposer(S_test_fused)
+        T_test_aligned = proposer(T_test_fused)
         
     # --------------------------------------------
     # Build aligned embeddings for ALL entities
     # --------------------------------------------
     with torch.no_grad():
 
+        # Structural embeddings
         H_all = rgcn(E, G.adj_lists)
+
+        # Fuse base + structure
         fused_all = fusion(E, H_all)
+
+        # Project to shared space
         aligned_all = proposer(fused_all)
 
+    # Convert to numpy
     aligned_entities_all = aligned_all.cpu().numpy()
+    
+    # Convert to numpy
+    aligned_entities_all = aligned_all.cpu().numpy()
+
+    # Recover URI order
     entity_order = [id2ent[i] for i in range(len(id2ent))]
 
+    # Attach URIs
     aligned_entities_all = aligned_entities_all[:len(entity_order)]
     aligned_df = pd.DataFrame(aligned_entities_all, index=entity_order)
     print("aligned embeddings:", aligned_entities_all.shape)
     print("entity_order:", len(entity_order))
 
+    # Remove FR entities that are aligned
     aligned_df_no_fr = aligned_df.drop(index=T_train_keys, errors="ignore")
+
     aligned_entities_filtered = aligned_df_no_fr.values
+
+    # Convert to numpy
+    S_eval = S_test_aligned.cpu().numpy()
+    T_eval = T_test_aligned.cpu().numpy()
+
+    # --------------------------------------------
+    # 6. Evaluate entity alignment
+    # --------------------------------------------
+    alignment_result, hits_at_k, mean_rank, mrr = test(
+        embeds1=S_eval,
+        embeds2=T_eval,
+        mapping=None,
+        top_k=[1, 5, 10, 50],
+        threads_num=1,
+        metric='cosine',
+        normalize=True
+    )
+
+    print(f"\n[Final Test Alignment Results]")
+    print(f"Pairs used: {len(S_test_keys)}")
+    print(f"Hits@1:  {hits_at_k[0]:.4f}")
+    print(f"Hits@5:  {hits_at_k[1]:.4f}")
+    print(f"Hits@10: {hits_at_k[2]:.4f}")
+    print(f"Hits@50: {hits_at_k[3]:.4f}")
+    print(f"MR:      {mean_rank:.2f}")
+    print(f"MRR:     {mrr:.4f}")
     
-    test_results = None
+    # Save test metrics
+    test_results = {
+        "pairs_used": len(S_test_keys),
+        "hits1": hits_at_k[0],
+        "hits5": hits_at_k[1],
+        "hits10": hits_at_k[2],
+        "hits50": hits_at_k[3],
+        "mr": mean_rank,
+        "mrr": mrr
+    }
 
-    if S_test_aligned is not None:
-        S_eval = S_test_aligned.cpu().numpy()
-        T_eval = T_test_aligned.cpu().numpy()
+    # Save as JSON
+    with open(os.path.join(output_dir, "test_metrics.json"), "w") as f:
+        json.dump(test_results, f, indent=4)
 
-        alignment_result, hits_at_k, mean_rank, mrr = test(
-            embeds1=S_eval,
-            embeds2=T_eval,
-            mapping=None,
-            top_k=[1, 5, 10, 50],
-            threads_num=1,
-            metric='cosine',
-            normalize=True
-        )
+    # Also save as CSV (optional but convenient)
+    pd.DataFrame([test_results]).to_csv(
+        os.path.join(output_dir, "test_metrics.csv"),
+        index=False
+    )
 
-        print(f"\n[Final Test Alignment Results]")
-        print(f"Pairs used: {len(S_test_keys)}")
-        print(f"Hits@1:  {hits_at_k[0]:.4f}")
-        print(f"Hits@5:  {hits_at_k[1]:.4f}")
-        print(f"Hits@10: {hits_at_k[2]:.4f}")
-        print(f"Hits@50: {hits_at_k[3]:.4f}")
-        print(f"MR:      {mean_rank:.2f}")
-        print(f"MRR:     {mrr:.4f}")
-        
-        test_results = {
-            "pairs_used": len(S_test_keys),
-            "hits1": hits_at_k[0],
-            "hits5": hits_at_k[1],
-            "hits10": hits_at_k[2],
-            "hits50": hits_at_k[3],
-            "mr": mean_rank,
-            "mrr": mrr
-        }
-
-    else:
-        print(" Skipping final test evaluation (no test pairs)")
-
-    
-    if test_results is not None:
-        with open(os.path.join(output_dir, "test_metrics.json"), "w") as f:
-            json.dump(test_results, f, indent=4)
-
-        pd.DataFrame([test_results]).to_csv(
-            os.path.join(output_dir, "test_metrics.csv"),
-            index=False
-        )
-
-        print(f"Saved test metrics to {output_dir}")
-    else:
-        print("No test results to save.")
+    print(f"Saved test metrics to {output_dir}")
 
 
     # ===== fine-tuning =====
@@ -424,8 +496,11 @@ def train_alignment_model(
     except NameError:
         test_triples_path = None
 
-
-    safe_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # Use only a small subset of triples for testing
+    import random
+    random.shuffle(triples_batch)
+    triples_batch_small = triples_batch[:60000]
+    # Now proceed based on availability
     if test_triples_path and os.path.exists(test_triples_path):
         print("\n[Test triples found — proceeding with fine-tuning and link prediction evaluation]")
         try:
@@ -433,12 +508,12 @@ def train_alignment_model(
                 model=model,
                 aligned_entity_embeddings=aligned_entities_filtered,
                 aligned_relation_embeddings=aligned_relation_embeddings                                                         ,
-                triples_batch=triples_batch,
+                triples_batch=triples_batch_small,
                 val_triples=val_triples,
                 train_triples=train_triples,
                 entity_to_idx=entity_to_idx_aligned,
                 relation_to_idx=relation_to_idx_aligned,
-                device=safe_device,
+                device=device,
                 output_dir=output_dir,
                 batch_size=256,
                 epochs=20,
@@ -449,13 +524,14 @@ def train_alignment_model(
     else:
         print("\n[Note] No test triples provided — skipping fine-tuning and link prediction.]")
         
-    # -------------------------------------------------
+        # -------------------------------------------------
     # Build final model after fine-tuning
     # -------------------------------------------------
 
     fine_tuned_entities = model.entity_embeddings.weight.data.cpu().numpy()
     fine_tuned_relations = model.relation_embeddings.weight.data.cpu().numpy()
 
+    # Reattach URIs using the same order used during training
     fine_tuned_df = pd.DataFrame(
         fine_tuned_entities,
         index=aligned_df_no_fr.index

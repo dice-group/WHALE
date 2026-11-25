@@ -1,10 +1,11 @@
+from collections import defaultdict, Counter
 import logging
 import torch
-import numpy as np
-import pandas as pd
 import torch.nn.functional as F
+import numpy as np
 from modules.data_loader import clean_uri
-from collections import defaultdict, Counter
+import pandas as pd
+
 
 
 def build_graph_indexes_GCN(triples, entity_set=None):

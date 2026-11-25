@@ -19,6 +19,12 @@ The Web has become the largest and most widely used information infrastructure g
 - **Universal Knowledge Graph Embeddings**: Development of embeddings for large-scale knowledge graphs, enabling the training of deep learning models that act as efficient function approximators during the CEL process.
 - **Tensor-Based Querying**: Use of tensor representations to improve the runtime of queries on RDF data, facilitating instance retrieval on a web scale.
 
+## Subprojects
+
+- **[ASTRA](ASTRA/)** — Scalable entity alignment across independently trained KG embeddings (source: [dice-group/ASTRA](https://github.com/dice-group/ASTRA)).
+- **[Atlas](Atlas/)** — Adaptive attribute-aware post-hoc alignment of KG embeddings, combining GAT structural embeddings with LaBSE textual embeddings (source: [dice-group/Atlas](https://github.com/dice-group/Atlas)).
+- **[SAGE](SAGE/)** — Earlier alignment/link-prediction pipeline in this repository.
+
 ## Installation
 
 To install and run WHALE, follow these steps:

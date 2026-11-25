@@ -16,13 +16,13 @@ class SharedSpaceAlignmentNN(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_dim, input_dim),
         )
+        # vector gating (learned per-dimension)
         self.alpha = nn.Parameter(torch.zeros(input_dim))
 
     def forward(self, x):
         z = self.net(x)              
         a = torch.sigmoid(self.alpha)  
         return (1 - a) * x + a * z     # 
-    
     
     
 class RGCNLayer(nn.Module):
@@ -38,6 +38,8 @@ class RGCNLayer(nn.Module):
         adj_lists: dict {relation_id: list of (i, j) edges}
         """
         out = torch.zeros(x.size(0), self.W_self.out_features, device=x.device)
+
+        # Self-loop
         out += self.W_self(x)
 
         for r, edges in adj_lists.items():
@@ -51,8 +53,7 @@ class RGCNLayer(nn.Module):
 
         return F.relu(out)
     
-
-
+    
 class RGCNEncoder(nn.Module):
     def __init__(self, in_dim, hid_dim, num_relations):
         super().__init__()
@@ -65,25 +66,35 @@ class RGCNEncoder(nn.Module):
         return h   # h_struct(i)
 
 
+    
 class Fusion(nn.Module):
-    def __init__(self, dim):
+    def __init__(self, dim, hidden=128):
         super().__init__()
-        self.Ws = nn.Linear(dim, dim, bias=False)
+        self.mlp = nn.Sequential(
+            nn.Linear(2*dim, hidden),
+            nn.ReLU(),
+            nn.Linear(hidden, dim)
+        )
+        self.gate = nn.Sequential(
+            nn.Linear(2*dim, hidden),
+            nn.ReLU(),
+            nn.Linear(hidden, dim)   
+        )
 
-    def forward(self, e_base, h_struct):
-        return e_base + self.Ws(h_struct)
+    def forward(self, e, h):
+        x = torch.cat([e, h], dim=-1)
+        z = self.mlp(x)                     
+        a = torch.sigmoid(self.gate(x))     
+        out = (1 - a) * e + a * z            
+        return out
 
 
-
-def symmetric_margin_loss(S, T, margin=0.5, k=5):
+def symmetric_margin_loss(S, T, margin=0.5, k=32):
     S = F.normalize(S, dim=1)
     T = F.normalize(T, dim=1)
 
     N = S.size(0)
-
     sim = torch.matmul(S, T.t())  # cosine sim
-
-    # Mask diagonal (positive pairs)
     mask = torch.eye(N, device=S.device).bool()
     sim_neg = sim.masked_fill(mask, -1e9)
 
@@ -107,7 +118,6 @@ def symmetric_margin_loss(S, T, margin=0.5, k=5):
     L_TS = F.relu(neg_mean2 + margin - pos2).mean()
 
     return L_ST + L_TS, pos.mean().item(), neg_mean.mean().item()
-
 
 
 
